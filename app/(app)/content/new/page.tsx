@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,22 +10,33 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStreamGeneration } from "@/hooks/use-stream-generation";
-import { Sparkles, ArrowRight, RotateCcw } from "lucide-react";
+import { Sparkles, ArrowRight, RotateCcw, Tag } from "lucide-react";
 import type { Project } from "@/types/database";
 
 const TONES = ["professional", "conversational", "authoritative", "friendly", "technical"];
 
 export default function NewContentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { generate, streaming, content, articleId, wordCount, error, reset } = useStreamGeneration();
   const [projects, setProjects] = useState<Project[]>([]);
   const [form, setForm] = useState({ keyword: "", brief: "", tone: "professional", targetWordCount: 1500, projectId: "" });
   const outputRef = useRef<HTMLDivElement>(null);
 
+  const clusterName = searchParams.get("clusterName");
+  const clusterKeywords = searchParams.get("keywords");
+
   useEffect(() => {
     fetch("/api/projects").then((r) => r.json()).then((data) => {
       setProjects(data);
-      if (data[0]) setForm((prev) => ({ ...prev, projectId: data[0].id }));
+      setForm((prev) => ({
+        ...prev,
+        projectId: data[0]?.id ?? "",
+        keyword: clusterName ?? prev.keyword,
+        brief: clusterKeywords
+          ? `Target keywords from cluster: ${clusterKeywords.split(",").slice(0, 10).join(", ")}`
+          : prev.brief,
+      }));
     });
   }, []);
 
@@ -62,6 +73,13 @@ export default function NewContentPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleGenerate} className="space-y-4">
+              {clusterName && (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  <Tag className="h-3 w-3 shrink-0" />
+                  <span>Writing for cluster: <span className="font-medium text-foreground">{clusterName}</span></span>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label>Project</Label>
                 <Select value={form.projectId} onValueChange={(v) => setForm({ ...form, projectId: v })}>
