@@ -295,16 +295,6 @@ export default function KeywordResearchPage() {
                   )}
                 </>
               )}
-              {clusters.length > 0 && !clustersSaved && (
-                <Button size="sm" onClick={handleSaveClusters} disabled={saving}>
-                  <Save className="h-4 w-4" /> {saving ? "Saving clusters..." : "Save clusters + keywords"}
-                </Button>
-              )}
-              {clustersSaved && (
-                <span className="flex items-center gap-1 text-sm text-green-600 font-medium">
-                  <CheckCircle2 className="h-4 w-4" /> Clusters saved
-                </span>
-              )}
             </div>
           </div>
 
@@ -369,7 +359,18 @@ export default function KeywordResearchPage() {
           {/* AI Cluster cards */}
           {clusters.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-semibold">AI Clusters</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">AI Clusters</h3>
+                {!clustersSaved ? (
+                  <Button size="sm" onClick={handleSaveClusters} disabled={saving}>
+                    <Save className="h-4 w-4" /> {saving ? "Saving clusters..." : "Save clusters + keywords"}
+                  </Button>
+                ) : (
+                  <span className="flex items-center gap-1 text-sm text-green-600 font-medium">
+                    <CheckCircle2 className="h-4 w-4" /> Clusters saved
+                  </span>
+                )}
+              </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {clusters.map((cluster) => {
                   const isExpanded = expandedClusters.has(cluster.name);
