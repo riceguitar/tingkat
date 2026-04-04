@@ -81,3 +81,120 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Restore typography inside Milkdown editor (undone by Tailwind preflight) */
+.milkdown .ProseMirror {
+  outline: none;
+}
+
+.milkdown .ProseMirror h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin-top: 0.67em;
+  margin-bottom: 0.67em;
+  line-height: 1.2;
+}
+
+.milkdown .ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin-top: 0.83em;
+  margin-bottom: 0.83em;
+  line-height: 1.3;
+}
+
+.milkdown .ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  line-height: 1.4;
+}
+
+.milkdown .ProseMirror h4 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-top: 1.33em;
+  margin-bottom: 1.33em;
+}
+
+.milkdown .ProseMirror h5,
+.milkdown .ProseMirror h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 1.67em;
+  margin-bottom: 1.67em;
+}
+
+.milkdown .ProseMirror p {
+  margin-top: 0;
+  margin-bottom: 1em;
+  line-height: 1.7;
+}
+
+.milkdown .ProseMirror ul,
+.milkdown .ProseMirror ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.milkdown .ProseMirror ul {
+  list-style-type: disc;
+}
+
+.milkdown .ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.milkdown .ProseMirror li {
+  margin-bottom: 0.25em;
+}
+
+.milkdown .ProseMirror strong {
+  font-weight: 700;
+}
+
+.milkdown .ProseMirror em {
+  font-style: italic;
+}
+
+.milkdown .ProseMirror blockquote {
+  border-left: 4px solid var(--border);
+  padding-left: 1em;
+  margin-left: 0;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.milkdown .ProseMirror code {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.875em;
+  background: var(--muted);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+.milkdown .ProseMirror pre {
+  background: var(--muted);
+  padding: 1em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
+.milkdown .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.milkdown .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
+}
+
+.milkdown .ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+}

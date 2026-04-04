@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Crepe, CrepeFeature } from "@milkdown/crepe";
 import "@milkdown/crepe/theme/classic.css";
+import "@milkdown/crepe/theme/common/style.css";
 
 interface MilkdownEditorProps {
   value: string;
