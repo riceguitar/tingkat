@@ -121,10 +121,10 @@ export default function NewContentPage() {
                   <Label className="flex items-center gap-1.5">
                     <Layers className="h-3.5 w-3.5" /> Supporting pillar
                   </Label>
-                  <Select value={form.pillarPageId} onValueChange={(v) => setForm({ ...form, pillarPageId: v })}>
+                  <Select value={form.pillarPageId || "__none__"} onValueChange={(v) => setForm({ ...form, pillarPageId: v === "__none__" ? "" : v })}>
                     <SelectTrigger><SelectValue placeholder="None (general article)" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {pillars.map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
                     </SelectContent>
                   </Select>
