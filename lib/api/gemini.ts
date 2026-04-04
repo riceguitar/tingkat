@@ -16,15 +16,21 @@ export interface GenerationParams {
   brief: string;
   tone: string;
   targetWordCount: number;
+  pillar?: { url: string; title: string } | null;
 }
 
 export function buildArticlePrompt(params: GenerationParams): string {
+  const pillarContext = params.pillar
+    ? `\nSupporting pillar page: "${params.pillar.title}" (${params.pillar.url})
+This blog post should naturally support and internally link to the above pillar page.`
+    : "";
+
   return `You are an expert SEO content writer. Generate a complete, high-quality SEO-optimized blog article.
 
 Target keyword: "${params.keyword}"
 Tone: ${params.tone}
 Target word count: ${params.targetWordCount} words
-Brief/notes: ${params.brief || "None provided"}
+Brief/notes: ${params.brief || "None provided"}${pillarContext}
 
 Output your response in this exact format:
 

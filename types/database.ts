@@ -15,6 +15,12 @@ export interface Database {
         Update: Partial<Omit<CmsConnection, "id" | "created_at">>;
         Relationships: [];
       };
+      pillar_pages: {
+        Row: PillarPage;
+        Insert: Omit<PillarPage, "id" | "created_at">;
+        Update: Partial<Omit<PillarPage, "id" | "created_at">>;
+        Relationships: [];
+      };
       keyword_clusters: {
         Row: KeywordCluster;
         Insert: Omit<KeywordCluster, "id" | "created_at">;
@@ -92,9 +98,20 @@ export interface CmsConnection {
   updated_at: string;
 }
 
+export interface PillarPage {
+  id: string;
+  project_id: string;
+  url: string;
+  title: string;
+  description: string | null;
+  target_keyword: string | null;
+  created_at: string;
+}
+
 export interface KeywordCluster {
   id: string;
   project_id: string;
+  pillar_page_id: string | null;
   name: string;
   color: string;
   intent: string | null;
@@ -122,6 +139,7 @@ export interface Article {
   project_id: string;
   keyword_id: string | null;
   cluster_id: string | null;
+  pillar_page_id: string | null;
   title: string | null;
   slug: string | null;
   meta_description: string | null;
