@@ -1,20 +1,21 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Search, Sparkles, Save, TrendingUp, DollarSign, Target,
   ChevronDown, ChevronUp, X, Trash2, FileText, CheckCircle2,
+  Pencil, Check,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
-import type { Project, KeywordCluster, Keyword } from "@/types/database";
+import { useProject } from "@/lib/context/project-context";
+import type { KeywordCluster, Keyword } from "@/types/database";
 
 interface KeywordResult {
   keyword: string;
@@ -37,8 +38,9 @@ type SavedCluster = KeywordCluster & { keywords: Pick<Keyword, "id" | "keyword" 
 
 export default function KeywordResearchPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectId] = useState("");
+  const searchParams = useSearchParams();
+  const { projectId: contextProjectId, project } = useProject();
+  const projectId = searchParams.get("projectId") ?? contextProjectId;
   const [seedKeyword, setSeedKeyword] = useState("");
   const [results, setResults] = useState<KeywordResult[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -51,13 +53,8 @@ export default function KeywordResearchPage() {
   const [savedClusters, setSavedClusters] = useState<SavedCluster[]>([]);
   const [expandedSaved, setExpandedSaved] = useState<Set<string>>(new Set());
   const [deletingCluster, setDeletingCluster] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/projects").then((r) => r.json()).then((data) => {
-      setProjects(data);
-      if (data[0]) setProjectId(data[0].id);
-    });
-  }, []);
+  const [editingCluster, setEditingCluster] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", color: "", intent: "" });
 
   useEffect(() => {
     if (projectId) loadSavedClusters();
@@ -219,6 +216,22 @@ export default function KeywordResearchPage() {
     });
   }
 
+  function startEditCluster(cluster: SavedCluster) {
+    setEditingCluster(cluster.id);
+    setEditForm({ name: cluster.name, color: cluster.color, intent: cluster.intent ?? "" });
+  }
+
+  async function handleSaveClusterEdit(id: string) {
+    const res = await fetch(`/api/clusters/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: editForm.name, color: editForm.color, intent: editForm.intent || null }),
+    });
+    const updated = await res.json();
+    setSavedClusters((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)));
+    setEditingCluster(null);
+  }
+
   async function handleDeleteCluster(id: string) {
     setDeletingCluster(id);
     await fetch(`/api/clusters/${id}`, { method: "DELETE" });
@@ -248,7 +261,10 @@ export default function KeywordResearchPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Keyword Research" description="Find and cluster keywords for your content strategy" />
+      <PageHeader
+        title={project ? `${project.name} — Keywords` : "Keyword Research"}
+        description="Find and cluster keywords for your content strategy"
+      />
 
       {/* Search form */}
       <Card>
@@ -258,16 +274,7 @@ export default function KeywordResearchPage() {
               <Label>Seed keyword</Label>
               <Input value={seedKeyword} onChange={(e) => setSeedKeyword(e.target.value)} placeholder="e.g. email marketing" required />
             </div>
-            <div className="space-y-1.5 w-48">
-              <Label>Project</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                <SelectContent>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !projectId}>
               <Search className="h-4 w-4" /> {loading ? "Researching..." : "Research"}
             </Button>
           </form>
@@ -453,69 +460,116 @@ export default function KeywordResearchPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {savedClusters.map((cluster) => {
               const isExpanded = expandedSaved.has(cluster.id);
+              const isEditing = editingCluster === cluster.id;
               const kws = cluster.keywords ?? [];
               const displayKws = isExpanded ? kws : kws.slice(0, 6);
               return (
                 <Card key={cluster.id} className="overflow-hidden">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: cluster.color }} />
-                      <span className="flex-1 min-w-0 truncate">{cluster.name}</span>
-                      <span className="text-xs font-normal text-muted-foreground shrink-0">{kws.length} kw</span>
-                    </CardTitle>
-                    {cluster.intent && (
-                      <span className={`w-fit rounded-full px-2 py-0.5 text-xs ${intentColors[cluster.intent] ?? "bg-gray-100 text-gray-700"}`}>
-                        {cluster.intent}
-                      </span>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={editForm.color}
+                            onChange={(e) => setEditForm((f) => ({ ...f, color: e.target.value }))}
+                            className="h-6 w-6 rounded cursor-pointer border-0 p-0 bg-transparent"
+                            title="Cluster color"
+                          />
+                          <input
+                            value={editForm.name}
+                            onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                            className="flex-1 rounded border bg-background px-2 py-1 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-ring"
+                            placeholder="Cluster name"
+                          />
+                        </div>
+                        <select
+                          value={editForm.intent}
+                          onChange={(e) => setEditForm((f) => ({ ...f, intent: e.target.value }))}
+                          className="w-full rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="">No intent</option>
+                          <option value="informational">Informational</option>
+                          <option value="commercial">Commercial</option>
+                          <option value="transactional">Transactional</option>
+                          <option value="navigational">Navigational</option>
+                        </select>
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingCluster(null)} title="Cancel">
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" className="h-7 w-7 p-0" onClick={() => handleSaveClusterEdit(cluster.id)} title="Save">
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: cluster.color }} />
+                          <span className="flex-1 min-w-0 truncate">{cluster.name}</span>
+                          <span className="text-xs font-normal text-muted-foreground shrink-0">{kws.length} kw</span>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => startEditCluster(cluster)} title="Edit cluster">
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </CardTitle>
+                        {cluster.intent && (
+                          <span className={`w-fit rounded-full px-2 py-0.5 text-xs ${intentColors[cluster.intent] ?? "bg-gray-100 text-gray-700"}`}>
+                            {cluster.intent}
+                          </span>
+                        )}
+                      </>
                     )}
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex flex-wrap gap-1">
-                      {displayKws.map((kw) => (
-                        <span key={kw.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">{kw.keyword}</span>
-                      ))}
-                      {!isExpanded && kws.length > 6 && (
-                        <span className="text-xs text-muted-foreground py-0.5">+{kws.length - 6} more</span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between pt-1">
-                      {kws.length > 6 && (
-                        <button
-                          onClick={() => toggleSavedExpand(cluster.id)}
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                        >
-                          {isExpanded ? <><ChevronUp className="h-3 w-3" /> Show less</> : <><ChevronDown className="h-3 w-3" /> Show all</>}
-                        </button>
-                      )}
-                      <div className="ml-auto flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            const params = new URLSearchParams({
-                              clusterId: cluster.id,
-                              clusterName: cluster.name,
-                              keywords: kws.map((k) => k.keyword).join(","),
-                            });
-                            router.push(`/content/new?${params.toString()}`);
-                          }}
-                        >
-                          <FileText className="h-3 w-3" /> Generate article
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          disabled={deletingCluster === cluster.id}
-                          onClick={() => handleDeleteCluster(cluster.id)}
-                          title="Delete cluster"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                  {!isEditing && (
+                    <CardContent className="space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        {displayKws.map((kw) => (
+                          <span key={kw.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">{kw.keyword}</span>
+                        ))}
+                        {!isExpanded && kws.length > 6 && (
+                          <span className="text-xs text-muted-foreground py-0.5">+{kws.length - 6} more</span>
+                        )}
                       </div>
-                    </div>
-                  </CardContent>
+                      <div className="flex items-center justify-between pt-1">
+                        {kws.length > 6 && (
+                          <button
+                            onClick={() => toggleSavedExpand(cluster.id)}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                          >
+                            {isExpanded ? <><ChevronUp className="h-3 w-3" /> Show less</> : <><ChevronDown className="h-3 w-3" /> Show all</>}
+                          </button>
+                        )}
+                        <div className="ml-auto flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              const params = new URLSearchParams({
+                                clusterId: cluster.id,
+                                clusterName: cluster.name,
+                                keywords: kws.map((k) => k.keyword).join(","),
+                              });
+                              router.push(`/content/new?${params.toString()}`);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" /> Generate article
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            disabled={deletingCluster === cluster.id}
+                            onClick={() => handleDeleteCluster(cluster.id)}
+                            title="Delete cluster"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
               );
             })}

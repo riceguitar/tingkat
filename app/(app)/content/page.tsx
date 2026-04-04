@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import { TableSkeleton } from "@/components/shared/loading-skeleton";
 import { Plus, FileText, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import type { Article } from "@/types/database";
-import { useRouter } from "next/navigation";
+import { useProject } from "@/lib/context/project-context";
 
 const STATUS_VARIANTS: Record<string, "success" | "info" | "warning" | "destructive" | "secondary"> = {
   published: "success", scheduled: "info", draft: "secondary", failed: "destructive", publishing: "warning",
@@ -20,6 +21,10 @@ const STATUS_VARIANTS: Record<string, "success" | "info" | "warning" | "destruct
 
 export default function ContentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { projectId: contextProjectId, project } = useProject();
+  const projectId = searchParams.get("projectId") ?? contextProjectId;
+
   const [articles, setArticles] = useState<(Article & { projects?: { name: string } })[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -30,6 +35,7 @@ export default function ContentPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: "20" });
     if (statusFilter !== "all") params.set("status", statusFilter);
+    if (projectId) params.set("projectId", projectId);
     const res = await fetch(`/api/articles?${params}`);
     const data = await res.json();
     setArticles(data.articles ?? []);
@@ -37,12 +43,15 @@ export default function ContentPage() {
     setLoading(false);
   }, [page, statusFilter]);
 
-  useEffect(() => { fetchArticles(); }, [fetchArticles]);
+  useEffect(() => { fetchArticles(); }, [fetchArticles, projectId]);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Content" description={`${total} articles`}>
-        <Button onClick={() => router.push("/content/new")}>
+      <PageHeader
+        title={project ? `${project.name} — Content` : "Content"}
+        description={`${total} article${total !== 1 ? "s" : ""}`}
+      >
+        <Button onClick={() => router.push(`/content/new${projectId ? `?projectId=${projectId}` : ""}`)}>
           <Plus className="h-4 w-4" /> Generate Article
         </Button>
       </PageHeader>
@@ -67,7 +76,7 @@ export default function ContentPage() {
           icon={FileText}
           title="No articles yet"
           description="Generate your first AI-powered SEO article."
-          action={{ label: "Generate article", onClick: () => router.push("/content/new") }}
+          action={{ label: "Generate article", onClick: () => router.push(`/content/new${projectId ? `?projectId=${projectId}` : ""}`) }}
         />
       ) : (
         <Card>

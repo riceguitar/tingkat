@@ -11,34 +11,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStreamGeneration } from "@/hooks/use-stream-generation";
 import { Sparkles, ArrowRight, RotateCcw, Tag } from "lucide-react";
-import type { Project } from "@/types/database";
+import { useProject } from "@/lib/context/project-context";
 
 const TONES = ["professional", "conversational", "authoritative", "friendly", "technical"];
 
 export default function NewContentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { projects, projectId: contextProjectId } = useProject();
   const { generate, streaming, content, articleId, wordCount, error, reset } = useStreamGeneration();
-  const [projects, setProjects] = useState<Project[]>([]);
   const [form, setForm] = useState({ keyword: "", brief: "", tone: "professional", targetWordCount: 1500, projectId: "" });
   const outputRef = useRef<HTMLDivElement>(null);
 
   const clusterName = searchParams.get("clusterName");
   const clusterKeywords = searchParams.get("keywords");
+  const urlProjectId = searchParams.get("projectId");
 
   useEffect(() => {
-    fetch("/api/projects").then((r) => r.json()).then((data) => {
-      setProjects(data);
-      setForm((prev) => ({
-        ...prev,
-        projectId: data[0]?.id ?? "",
-        keyword: clusterName ?? prev.keyword,
-        brief: clusterKeywords
-          ? `Target keywords from cluster: ${clusterKeywords.split(",").slice(0, 10).join(", ")}`
-          : prev.brief,
-      }));
-    });
-  }, []);
+    const pid = urlProjectId ?? contextProjectId;
+    setForm((prev) => ({
+      ...prev,
+      projectId: pid,
+      keyword: clusterName ?? prev.keyword,
+      brief: clusterKeywords
+        ? `Target keywords from cluster: ${clusterKeywords.split(",").slice(0, 10).join(", ")}`
+        : prev.brief,
+    }));
+  }, [contextProjectId]);
 
   useEffect(() => {
     if (outputRef.current) {

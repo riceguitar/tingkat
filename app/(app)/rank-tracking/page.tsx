@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, subDays } from "date-fns";
-import type { Project } from "@/types/database";
+import { useProject } from "@/lib/context/project-context";
 
 interface Snapshot {
   id: string;
@@ -24,19 +24,14 @@ interface Snapshot {
 }
 
 export default function RankTrackingPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectId] = useState("");
+  const searchParams = useSearchParams();
+  const { projectId: contextProjectId, project } = useProject();
+  const projectId = searchParams.get("projectId") ?? contextProjectId;
+
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedKeywordId, setSelectedKeywordId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/projects").then((r) => r.json()).then((data) => {
-      setProjects(data);
-      if (data[0]) setProjectId(data[0].id);
-    });
-  }, []);
 
   const fetchSnapshots = useCallback(async () => {
     if (!projectId) return;
@@ -87,19 +82,11 @@ export default function RankTrackingPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Rank Tracking" description="Monitor your keyword positions in Google">
-        <div className="flex gap-2">
-          <Select value={projectId} onValueChange={setProjectId}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Select project" /></SelectTrigger>
-            <SelectContent>
-              {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing || !projectId}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
+      <PageHeader title={project ? `${project.name} — Rankings` : "Rank Tracking"} description="Monitor your keyword positions in Google">
+        <Button variant="outline" onClick={handleRefresh} disabled={refreshing || !projectId}>
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </Button>
       </PageHeader>
 
       {loading ? <TableSkeleton /> : keywords.length === 0 ? (

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
+import { useProject } from "@/lib/context/project-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -27,16 +29,22 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function CalendarPage() {
+  const searchParams = useSearchParams();
+  const { projectId: contextProjectId, project } = useProject();
+  const projectId = searchParams.get("projectId") ?? contextProjectId;
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   const fetchEvents = useCallback(async () => {
     const month = currentDate.getMonth() + 1;
     const year = currentDate.getFullYear();
-    const res = await fetch(`/api/calendar?month=${month}&year=${year}`);
+    const params = new URLSearchParams({ month: String(month), year: String(year) });
+    if (projectId) params.set("projectId", projectId);
+    const res = await fetch(`/api/calendar?${params}`);
     const data = await res.json();
     setEvents(data.events ?? []);
-  }, [currentDate]);
+  }, [currentDate, projectId]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
@@ -52,7 +60,7 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Content Calendar" description="Schedule and track your content pipeline">
+      <PageHeader title={project ? `${project.name} — Calendar` : "Content Calendar"} description="Schedule and track your content pipeline">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
             <ChevronLeft className="h-4 w-4" />
