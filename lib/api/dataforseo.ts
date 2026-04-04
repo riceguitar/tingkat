@@ -78,6 +78,167 @@ export interface SerpResult {
   title: string | null;
 }
 
+// ============================================================
+// Full SERP data for a single keyword (used by research pipeline)
+// ============================================================
+import type { SerpData, SerpOrganicItem, ExternalLinkCandidate } from "@/types/research";
+
+export { SerpData, SerpOrganicItem, ExternalLinkCandidate };
+
+export async function getSerpData(
+  keyword: string,
+  locationCode = 2840,
+  languageCode = "en"
+): Promise<SerpData> {
+  type SerpItem = {
+    type: string;
+    rank_absolute?: number;
+    title?: string;
+    url?: string;
+    description?: string;
+    featured_title?: string;
+    featured_description?: string;
+    items?: Array<{ type: string; title?: string; question?: string }>;
+    search_query?: string;
+    text?: string;
+    source_url?: string;
+  };
+
+  type SerpRawResult = {
+    items?: SerpItem[];
+  };
+
+  const [serpRaw, kwRaw] = await Promise.all([
+    request<{
+      tasks: Array<{ result: SerpRawResult[] | null }>;
+    }>("/serp/google/organic/live/advanced", [
+      {
+        keyword,
+        location_code: locationCode,
+        language_code: languageCode,
+        device: "desktop",
+        depth: 10,
+      },
+    ]),
+    request<{
+      tasks: Array<{
+        result: Array<{
+          keyword: string;
+          search_volume: number;
+          cpc: number;
+          competition_index: number;
+        }> | null;
+      }>;
+    }>("/keywords_data/google_ads/keywords_for_keywords/live", [
+      {
+        keywords: [keyword],
+        location_code: locationCode,
+        language_code: languageCode,
+        limit: 1,
+      },
+    ]),
+  ]);
+
+  const items: SerpItem[] = serpRaw?.tasks?.[0]?.result?.[0]?.items ?? [];
+
+  const organic: SerpOrganicItem[] = items
+    .filter((i) => i.type === "organic")
+    .slice(0, 10)
+    .map((i, idx) => ({
+      rank: i.rank_absolute ?? idx + 1,
+      title: i.title ?? "",
+      url: i.url ?? "",
+      description: i.description ?? "",
+    }));
+
+  const paa: string[] = items
+    .filter((i) => i.type === "people_also_ask")
+    .flatMap((i) => (i.items ?? []).map((q) => q.question ?? q.title ?? "").filter(Boolean))
+    .slice(0, 10);
+
+  const featuredItem = items.find((i) => i.type === "featured_snippet");
+  const featured_snippet = featuredItem
+    ? {
+        text: featuredItem.featured_description ?? featuredItem.description ?? "",
+        url: featuredItem.source_url ?? featuredItem.url ?? "",
+      }
+    : null;
+
+  const relatedItem = items.find((i) => i.type === "related_searches");
+  const related_searches: string[] = relatedItem
+    ? (relatedItem.items ?? []).map((r) => r.title ?? "").filter(Boolean)
+    : [];
+
+  // Rough word-count proxy: description length × 10, capped at 4000
+  const topFive = organic.slice(0, 5);
+  const avg_competitor_word_count =
+    topFive.length > 0
+      ? Math.round(
+          topFive.reduce((sum, o) => sum + Math.min((o.description.split(/\s+/).length) * 10, 4000), 0) /
+            topFive.length
+        )
+      : 1500;
+
+  const kwResult = kwRaw?.tasks?.[0]?.result?.[0];
+  const keyword_metrics = {
+    volume: kwResult?.search_volume ?? 0,
+    difficulty: kwResult?.competition_index ?? 0,
+    cpc: kwResult?.cpc ?? 0,
+  };
+
+  return { organic, paa, featured_snippet, related_searches, avg_competitor_word_count, keyword_metrics };
+}
+
+// ============================================================
+// Content analysis — finds authoritative external sources
+// ============================================================
+export async function getContentAnalysis(
+  query: string,
+  locationCode = 2840
+): Promise<ExternalLinkCandidate[]> {
+  type ContentItem = {
+    url?: string;
+    title?: string;
+    domain?: string;
+    snippet?: string;
+    description?: string;
+  };
+
+  const data = await request<{
+    tasks: Array<{
+      result: Array<{ items?: ContentItem[] }> | null;
+    }>;
+  }>("/content_analysis/search/live", [
+    {
+      keyword: query,
+      location_code: locationCode,
+      limit: 15,
+      filters: [["domain_rank", ">", 50]],
+    },
+  ]);
+
+  const items: ContentItem[] = data?.tasks?.[0]?.result?.[0]?.items ?? [];
+
+  // Deduplicate by domain, keep highest-ranked per domain, return top 8
+  const seen = new Set<string>();
+  const results: ExternalLinkCandidate[] = [];
+
+  for (const item of items) {
+    const domain = item.domain ?? new URL(item.url ?? "https://unknown").hostname;
+    if (seen.has(domain)) continue;
+    seen.add(domain);
+    results.push({
+      url: item.url ?? "",
+      title: item.title ?? "",
+      domain,
+      citation_context: item.snippet ?? item.description ?? "",
+    });
+    if (results.length >= 8) break;
+  }
+
+  return results;
+}
+
 export async function getSerpPositions(
   domain: string,
   keywords: string[],

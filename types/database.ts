@@ -160,6 +160,7 @@ export interface Article {
   wp_tags: string[] | null;
   generation_model: string | null;
   generation_prompt: string | null;
+  primary_keyword: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -206,5 +207,20 @@ export interface GscToken {
 export interface AppSetting {
   key: string;
   value: string | null;
+  updated_at: string;
+}
+
+export interface ArticleResearch {
+  id: string;
+  article_id: string;
+  primary_keyword: string;
+  serp_data: import("@/types/research").SerpData | null;
+  internal_links: import("@/types/research").InternalLinkCandidate[] | null;
+  external_links: import("@/types/research").ExternalLinkCandidate[] | null;
+  competition_analysis: import("@/types/research").CompetitionAnalysis | null;
+  writing_plan: string | null;
+  schema_markup: string | null;
+  eeat_checklist: Array<{ item: string; status: "pass" | "warn" | "fail" }> | null;
+  created_at: string;
   updated_at: string;
 }
