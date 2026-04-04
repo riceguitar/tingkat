@@ -37,4 +37,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Author
 
-David is the author
+David is the author of this repo and SEO project
