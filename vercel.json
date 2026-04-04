@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/publish",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/rank-snapshot",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/gsc-sync",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}
