@@ -26,6 +26,7 @@ export function useStreamGeneration() {
     targetWordCount: number;
     projectId: string;
     articleId?: string;
+    pillarPageId?: string | null;
   }) => {
     setState({ streaming: true, content: "", articleId: params.articleId ?? null, wordCount: null, error: null });
 

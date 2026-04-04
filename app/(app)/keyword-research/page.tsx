@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { useProject } from "@/lib/context/project-context";
-import type { KeywordCluster, Keyword } from "@/types/database";
+import type { KeywordCluster, Keyword, PillarPage } from "@/types/database";
 
 interface KeywordResult {
   keyword: string;
@@ -35,6 +35,7 @@ interface Cluster {
 }
 
 type SavedCluster = KeywordCluster & { keywords: Pick<Keyword, "id" | "keyword" | "search_volume" | "difficulty" | "intent">[] };
+type PillarOption = Pick<PillarPage, "id" | "title">;
 
 export default function KeywordResearchPage() {
   const router = useRouter();
@@ -54,11 +55,22 @@ export default function KeywordResearchPage() {
   const [expandedSaved, setExpandedSaved] = useState<Set<string>>(new Set());
   const [deletingCluster, setDeletingCluster] = useState<string | null>(null);
   const [editingCluster, setEditingCluster] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", color: "", intent: "" });
+  const [editForm, setEditForm] = useState({ name: "", color: "", intent: "", pillar_page_id: "" });
+  const [pillars, setPillars] = useState<PillarOption[]>([]);
 
   useEffect(() => {
-    if (projectId) loadSavedClusters();
+    if (projectId) {
+      loadSavedClusters();
+      loadPillars();
+    }
   }, [projectId]);
+
+  async function loadPillars() {
+    if (!projectId) return;
+    const res = await fetch(`/api/projects/${projectId}/pillars`);
+    const data = await res.json();
+    setPillars(Array.isArray(data) ? data : []);
+  }
 
   async function loadSavedClusters() {
     const res = await fetch(`/api/clusters?projectId=${projectId}`);
@@ -218,14 +230,19 @@ export default function KeywordResearchPage() {
 
   function startEditCluster(cluster: SavedCluster) {
     setEditingCluster(cluster.id);
-    setEditForm({ name: cluster.name, color: cluster.color, intent: cluster.intent ?? "" });
+    setEditForm({ name: cluster.name, color: cluster.color, intent: cluster.intent ?? "", pillar_page_id: cluster.pillar_page_id ?? "" });
   }
 
   async function handleSaveClusterEdit(id: string) {
     const res = await fetch(`/api/clusters/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editForm.name, color: editForm.color, intent: editForm.intent || null }),
+      body: JSON.stringify({
+        name: editForm.name,
+        color: editForm.color,
+        intent: editForm.intent || null,
+        pillar_page_id: editForm.pillar_page_id || null,
+      }),
     });
     const updated = await res.json();
     setSavedClusters((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)));
@@ -494,6 +511,18 @@ export default function KeywordResearchPage() {
                           <option value="transactional">Transactional</option>
                           <option value="navigational">Navigational</option>
                         </select>
+                        {pillars.length > 0 && (
+                          <select
+                            value={editForm.pillar_page_id}
+                            onChange={(e) => setEditForm((f) => ({ ...f, pillar_page_id: e.target.value }))}
+                            className="w-full rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                          >
+                            <option value="">No pillar page</option>
+                            {pillars.map((p) => (
+                              <option key={p.id} value={p.id}>{p.title}</option>
+                            ))}
+                          </select>
+                        )}
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingCluster(null)} title="Cancel">
                             <X className="h-3.5 w-3.5" />
@@ -513,11 +542,18 @@ export default function KeywordResearchPage() {
                             <Pencil className="h-3 w-3" />
                           </Button>
                         </CardTitle>
-                        {cluster.intent && (
-                          <span className={`w-fit rounded-full px-2 py-0.5 text-xs ${intentColors[cluster.intent] ?? "bg-gray-100 text-gray-700"}`}>
-                            {cluster.intent}
-                          </span>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {cluster.intent && (
+                            <span className={`rounded-full px-2 py-0.5 text-xs ${intentColors[cluster.intent] ?? "bg-gray-100 text-gray-700"}`}>
+                              {cluster.intent}
+                            </span>
+                          )}
+                          {cluster.pillar_page_id && pillars.find((p) => p.id === cluster.pillar_page_id) && (
+                            <span className="rounded-full px-2 py-0.5 text-xs bg-primary/10 text-primary">
+                              ↑ {pillars.find((p) => p.id === cluster.pillar_page_id)!.title}
+                            </span>
+                          )}
+                        </div>
                       </>
                     )}
                   </CardHeader>

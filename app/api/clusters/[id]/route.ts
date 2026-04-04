@@ -11,6 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.color !== undefined) updates.color = body.color;
   if (body.intent !== undefined) updates.intent = body.intent;
   if (body.description !== undefined) updates.description = body.description;
+  if (body.pillar_page_id !== undefined) updates.pillar_page_id = body.pillar_page_id;
 
   const { data, error } = await supabase
     .from("keyword_clusters")
