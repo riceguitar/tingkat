@@ -4,10 +4,23 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { keyword, brief, tone, targetWordCount, projectId, articleId } = body;
+  const { keyword, brief, tone, targetWordCount, projectId, articleId, pillarPageId } = body;
 
   if (!keyword || !projectId) {
     return NextResponse.json({ error: "keyword and projectId are required" }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+
+  // Fetch pillar page if provided
+  let pillar: { url: string; title: string } | null = null;
+  if (pillarPageId) {
+    const { data: pillarData } = await supabase
+      .from("pillar_pages")
+      .select("url, title")
+      .eq("id", pillarPageId)
+      .single();
+    if (pillarData) pillar = pillarData;
   }
 
   const prompt = buildArticlePrompt({
@@ -15,10 +28,9 @@ export async function POST(req: NextRequest) {
     brief: brief ?? "",
     tone: tone ?? "professional",
     targetWordCount: targetWordCount ?? 1500,
+    pillar,
   });
 
-  // Create article record upfront so we have an ID to stream back
-  const supabase = await createClient();
   let currentArticleId = articleId;
 
   if (!currentArticleId) {
@@ -29,7 +41,8 @@ export async function POST(req: NextRequest) {
         status: "draft",
         tone: tone ?? "professional",
         target_word_count: targetWordCount ?? 1500,
-        generation_model: "gemini-2.0-flash-001",
+        pillar_page_id: pillarPageId ?? null,
+        generation_model: "claude-sonnet-4-6",
         generation_prompt: prompt,
       })
       .select()

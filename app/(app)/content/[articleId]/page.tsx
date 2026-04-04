@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,14 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
 import { Save, Send, ExternalLink, Calendar, Globe } from "lucide-react";
 import { format } from "date-fns";
 import type { Article } from "@/types/database";
+
+const MilkdownEditor = dynamic(
+  () => import("@/components/editor/milkdown-editor").then((m) => m.MilkdownEditor),
+  { ssr: false, loading: () => <div className="min-h-[500px] rounded-md border bg-muted/30 animate-pulse" /> }
+);
 
 const STATUS_VARIANTS: Record<string, "success" | "info" | "warning" | "destructive" | "secondary"> = {
   published: "success", scheduled: "info", draft: "secondary", failed: "destructive", publishing: "warning",
@@ -30,6 +34,7 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ articl
   const [publishing, setPublishing] = useState(false);
   const [publishDialog, setPublishDialog] = useState(false);
   const [error, setError] = useState("");
+  const [editorReady, setEditorReady] = useState(false);
 
   useEffect(() => {
     fetch(`/api/articles/${articleId}`)
@@ -44,6 +49,7 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ articl
           featured_image_url: data.featured_image_url ?? "",
           scheduled_at: data.scheduled_at ? format(new Date(data.scheduled_at), "yyyy-MM-dd'T'HH:mm") : "",
         });
+        setEditorReady(true);
       });
   }, [articleId]);
 
@@ -133,13 +139,16 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ articl
           </div>
 
           <div className="space-y-1.5">
-            <Label>Content (Markdown)</Label>
-            <Textarea
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              className="min-h-[600px] font-mono text-sm"
-              placeholder="Start writing or generate content..."
-            />
+            <Label>Content</Label>
+            {editorReady && (
+              <MilkdownEditor
+                key={articleId}
+                value={form.content}
+                onChange={(md) => setForm((f) => ({ ...f, content: md }))}
+                placeholder="Start writing your article..."
+                minHeight="600px"
+              />
+            )}
           </div>
         </div>
 
