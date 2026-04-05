@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
       if (snapshots.length) {
         await supabase.from("gsc_snapshots").upsert(snapshots, { onConflict: "project_id,query,page,snapshot_date" });
         totalSynced += snapshots.length;
+        // Link matched keywords — idempotent
+        await supabase.rpc("link_gsc_keyword_ids", { p_project_id: tokenRow.project_id });
       }
     } catch {}
   }

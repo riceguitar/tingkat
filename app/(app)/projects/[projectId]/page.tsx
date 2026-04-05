@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { FileText, Search, TrendingUp, ArrowLeft, Globe, Layers, Plus, Trash2, Pencil, Check, X, ExternalLink, Sparkles } from "lucide-react";
+import { FileText, Search, TrendingUp, ArrowLeft, Globe, Layers, Plus, Trash2, Pencil, Check, X, ExternalLink, Sparkles, BarChart3 } from "lucide-react";
+import Link from "next/link";
 import type { Project, PillarPage } from "@/types/database";
 
 interface PillarSuggestion {
@@ -24,6 +25,7 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [pillars, setPillars] = useState<PillarPage[]>([]);
   const [pillarsLoading, setPillarsLoading] = useState(false);
+  const [gscConnected, setGscConnected] = useState<boolean | null>(null);
 
   // Discovery state
   const [discovering, setDiscovering] = useState(false);
@@ -52,6 +54,10 @@ export default function ProjectDetailPage() {
       .then((data) => { setProject(data); setLoading(false); })
       .catch(() => setLoading(false));
     loadPillars();
+    fetch(`/api/gsc/status?projectId=${projectId}`)
+      .then((r) => r.json())
+      .then((data) => setGscConnected(data.connected && data.propertyChosen))
+      .catch(() => setGscConnected(false));
   }, [projectId]);
 
   async function loadPillars() {
@@ -152,6 +158,22 @@ export default function ProjectDetailPage() {
           <ArrowLeft className="h-4 w-4" /> All projects
         </Button>
       </PageHeader>
+
+      {/* GSC connection banner */}
+      {gscConnected === false && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            Connect Google Search Console to unlock traffic insights, quick-win opportunities, and cannibalization detection.
+          </div>
+          <Link
+            href={`/settings/gsc?projectId=${projectId}`}
+            className="shrink-0 text-xs font-medium text-amber-700 dark:text-amber-400 underline underline-offset-2 hover:no-underline"
+          >
+            Connect now →
+          </Link>
+        </div>
+      )}
 
       {/* Quick-access cards */}
       <div className="grid gap-4 sm:grid-cols-3">

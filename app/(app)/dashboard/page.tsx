@@ -2,23 +2,42 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, FileText, Search, BarChart3 } from "lucide-react";
+import { TrendingUp, FileText, Search, BarChart3, MousePointerClick, Eye } from "lucide-react";
 import Link from "next/link";
+import { subDays, format } from "date-fns";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+
+  const thisWeekFrom = format(subDays(new Date(), 7), "yyyy-MM-dd");
+  const lastWeekFrom = format(subDays(new Date(), 14), "yyyy-MM-dd");
+  const lastWeekTo = format(subDays(new Date(), 8), "yyyy-MM-dd");
 
   const [
     { count: projectCount },
     { count: articleCount },
     { count: keywordCount },
     { data: recentArticlesRaw },
+    { data: gscThisWeek },
+    { data: gscLastWeek },
   ] = await Promise.all([
     supabase.from("projects").select("*", { count: "exact", head: true }),
     supabase.from("articles").select("*", { count: "exact", head: true }),
     supabase.from("keywords").select("*", { count: "exact", head: true }),
     supabase.from("articles").select("id, title, status, updated_at, projects(name)").order("updated_at", { ascending: false }).limit(5),
+    supabase.from("gsc_snapshots").select("clicks, impressions").gte("snapshot_date", thisWeekFrom),
+    supabase.from("gsc_snapshots").select("clicks, impressions").gte("snapshot_date", lastWeekFrom).lte("snapshot_date", lastWeekTo),
   ]);
+
+  const sumClicks = (rows: { clicks: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.clicks, 0);
+  const sumImpr   = (rows: { impressions: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.impressions, 0);
+  const thisClicks = sumClicks(gscThisWeek);
+  const lastClicks = sumClicks(gscLastWeek);
+  const thisImpr   = sumImpr(gscThisWeek);
+  const lastImpr   = sumImpr(gscLastWeek);
+  const clicksDelta  = lastClicks > 0 ? Math.round(((thisClicks - lastClicks) / lastClicks) * 100) : null;
+  const imprDelta    = lastImpr  > 0 ? Math.round(((thisImpr  - lastImpr)  / lastImpr)  * 100) : null;
+  const hasGscData   = (gscThisWeek?.length ?? 0) > 0 || (gscLastWeek?.length ?? 0) > 0;
 
   const recentArticles = (recentArticlesRaw ?? []) as unknown as Array<{
     id: string;
@@ -40,7 +59,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader title="Dashboard" description="Your SEO overview" />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -74,11 +93,47 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Rankings
+              <MousePointerClick className="h-4 w-4" /> Clicks (7d)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
+            {hasGscData ? (
+              <div className="flex items-end gap-2">
+                <div className="text-2xl font-bold">{thisClicks.toLocaleString()}</div>
+                {clicksDelta !== null && (
+                  <span className={`text-xs mb-1 font-medium ${clicksDelta >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {clicksDelta >= 0 ? "+" : ""}{clicksDelta}%
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                <Link href="/settings/gsc" className="underline underline-offset-2">Connect GSC</Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Eye className="h-4 w-4" /> Impressions (7d)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hasGscData ? (
+              <div className="flex items-end gap-2">
+                <div className="text-2xl font-bold">{thisImpr.toLocaleString()}</div>
+                {imprDelta !== null && (
+                  <span className={`text-xs mb-1 font-medium ${imprDelta >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {imprDelta >= 0 ? "+" : ""}{imprDelta}%
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                <Link href="/settings/gsc" className="underline underline-offset-2">Connect GSC</Link>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

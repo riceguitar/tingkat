@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
-import { Plus, FileText, ExternalLink } from "lucide-react";
+import { Plus, FileText, ExternalLink, MousePointerClick } from "lucide-react";
 import { format } from "date-fns";
 import type { Article } from "@/types/database";
 import { useProject } from "@/lib/context/project-context";
@@ -30,6 +30,7 @@ export default function ContentPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [gscPerf, setGscPerf] = useState<Record<string, { clicks: number; impressions: number; position: number }>>({});
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -41,6 +42,16 @@ export default function ContentPage() {
     setArticles(data.articles ?? []);
     setTotal(data.total ?? 0);
     setLoading(false);
+
+    // Load GSC performance for published articles
+    if (projectId) {
+      fetch(`/api/gsc/performance?projectId=${projectId}&days=28`)
+        .then((r) => r.json())
+        .then((perf) => {
+          if (perf.byKeyword) setGscPerf(perf.byKeyword);
+        })
+        .catch(() => {});
+    }
   }, [page, statusFilter]);
 
   useEffect(() => { fetchArticles(); }, [fetchArticles, projectId]);
@@ -98,9 +109,17 @@ export default function ContentPage() {
                     <Link href={`/content/${a.id}`} className="font-medium hover:underline">
                       {a.title ?? "Untitled"}
                     </Link>
-                    {a.actual_word_count && (
-                      <span className="ml-2 text-xs text-muted-foreground">{a.actual_word_count.toLocaleString()} words</span>
-                    )}
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {a.actual_word_count && (
+                        <span className="text-xs text-muted-foreground">{a.actual_word_count.toLocaleString()} words</span>
+                      )}
+                      {a.status === "published" && a.primary_keyword && gscPerf[a.primary_keyword] && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MousePointerClick className="h-3 w-3" />
+                          {gscPerf[a.primary_keyword].clicks} clicks · #{Math.round(gscPerf[a.primary_keyword].position * 10) / 10} · {gscPerf[a.primary_keyword].impressions.toLocaleString()} impr
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{(a.projects as { name: string } | null)?.name ?? "—"}</td>
                   <td className="px-4 py-3">
