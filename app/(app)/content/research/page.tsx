@@ -66,16 +66,6 @@ export default function ResearchGeneratePage() {
   const { steps, articleId, wordCount, error, isRunning, runAll, runStep, reset } =
     useResearchPipeline();
 
-  const [form, setForm] = useState({
-    keyword: "",
-    primaryKeyword: "",
-    brief: "",
-    tone: "professional",
-    targetWordCount: 1500,
-    projectId: "",
-    pillarPageId: "",
-    clusterId: "",
-  });
   const [pillars, setPillars] = useState<PillarPage[]>([]);
   const [expandedSteps, setExpandedSteps] = useState<Set<StepName>>(new Set());
   const articleRef = useRef<HTMLDivElement>(null);
@@ -85,21 +75,34 @@ export default function ResearchGeneratePage() {
   const urlProjectId = searchParams.get("projectId");
   const urlClusterId = searchParams.get("clusterId");
 
+  const [form, setForm] = useState({
+    keyword: clusterName ?? "",
+    primaryKeyword: clusterName ?? "",
+    brief: clusterKeywords
+      ? `Target keywords from cluster: ${clusterKeywords.split(",").slice(0, 10).join(", ")}`
+      : "",
+    tone: "professional",
+    targetWordCount: 1500,
+    projectId: urlProjectId ?? "",
+    pillarPageId: "",
+    clusterId: urlClusterId ?? "",
+  });
+
+  // Load pillars immediately if we have a projectId from the URL
   useEffect(() => {
-    const pid = urlProjectId ?? contextProjectId;
+    if (urlProjectId) loadPillarsAndMaybePrefill(urlProjectId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fallback: when context loads and we still have no projectId (URL had none), use context
+  useEffect(() => {
+    if (!contextProjectId) return;
     setForm((prev) => ({
       ...prev,
-      projectId: pid,
-      clusterId: urlClusterId ?? "",
-      keyword: clusterName ?? prev.keyword,
-      primaryKeyword: clusterName ?? prev.primaryKeyword,
-      brief: clusterKeywords
-        ? `Target keywords from cluster: ${clusterKeywords.split(",").slice(0, 10).join(", ")}`
-        : prev.brief,
+      projectId: prev.projectId || contextProjectId,
     }));
-    if (pid) loadPillarsAndMaybePrefill(pid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextProjectId]);
+    // Load pillars if we got the project from context (not URL)
+    if (!urlProjectId) loadPillarsAndMaybePrefill(contextProjectId);
+  }, [contextProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-expand steps as they complete
   useEffect(() => {

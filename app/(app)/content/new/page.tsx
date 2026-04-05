@@ -80,7 +80,8 @@ export default function NewContentPage() {
           variant="outline"
           onClick={() => {
             const params = new URLSearchParams();
-            if (form.projectId) params.set("projectId", form.projectId);
+            const pid = form.projectId || contextProjectId;
+            if (pid) params.set("projectId", pid);
             if (clusterName) params.set("clusterName", clusterName);
             if (clusterKeywords) params.set("keywords", clusterKeywords);
             if (urlClusterId) params.set("clusterId", urlClusterId);
