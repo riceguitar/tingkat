@@ -61,6 +61,9 @@ export default function KeywordResearchPage() {
   const [pillars, setPillars] = useState<PillarOption[]>([]);
   const [quickWins, setQuickWins] = useState<Array<{ query: string; clicks: number; impressions: number; avg_position: number }>>([]);
   const [researchLocationCode, setResearchLocationCode] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (projectId) {
@@ -324,7 +327,7 @@ export default function KeywordResearchPage() {
               <Label>Seed keyword</Label>
               <Input value={seedKeyword} onChange={(e) => setSeedKeyword(e.target.value)} placeholder="e.g. email marketing" required />
             </div>
-            <Button type="submit" disabled={loading || !projectId}>
+            <Button type="submit" disabled={loading || (mounted && !projectId)}>
               <Search className="h-4 w-4" /> {loading ? "Researching..." : "Research"}
             </Button>
           </form>
