@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ interface Snapshot {
   keywords?: { keyword: string };
 }
 
-export default function RankTrackingPage() {
+function RankTrackingPage() {
   const searchParams = useSearchParams();
   const { projectId: contextProjectId, project } = useProject();
   const projectId = searchParams.get("projectId") ?? contextProjectId;
@@ -273,5 +273,13 @@ export default function RankTrackingPage() {
         )
       )}
     </div>
+  );
+}
+
+export default function RankTrackingPageWrapper() {
+  return (
+    <Suspense>
+      <RankTrackingPage />
+    </Suspense>
   );
 }

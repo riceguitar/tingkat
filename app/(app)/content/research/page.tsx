@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactElement, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ import {
 
 const TONES = ["professional", "conversational", "authoritative", "friendly", "technical"];
 
-const STEP_ICONS: Record<StepName, JSX.Element> = {
+const STEP_ICONS: Record<StepName, ReactElement> = {
   serp_research: <Search className="h-4 w-4" />,
   internal_links: <Link2 className="h-4 w-4" />,
   external_links: <Globe className="h-4 w-4" />,
@@ -59,7 +59,7 @@ const STEP_ICONS: Record<StepName, JSX.Element> = {
   article_generation: <PenLine className="h-4 w-4" />,
 };
 
-export default function ResearchGeneratePage() {
+function ResearchGeneratePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { projects, projectId: contextProjectId } = useProject();
@@ -571,7 +571,7 @@ function StepCard({ step, state, expanded, onToggle, onRerun, isRunning, article
         </div>
 
         {/* Running progress message */}
-        {state.status === "running" && state.data && (
+        {state.status === "running" && state.data != null && (
           <p className="text-xs text-muted-foreground mt-1 pl-7">
             {(state.data as { message?: string }).message ?? "Working…"}
           </p>
@@ -781,5 +781,13 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="font-semibold">{value}</p>
     </div>
+  );
+}
+
+export default function ResearchGeneratePageWrapper() {
+  return (
+    <Suspense>
+      <ResearchGeneratePage />
+    </Suspense>
   );
 }

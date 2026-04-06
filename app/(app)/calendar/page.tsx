@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { useProject } from "@/lib/context/project-context";
@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
   failed: "bg-red-100 text-red-700",
 };
 
-export default function CalendarPage() {
+function CalendarPage() {
   const searchParams = useSearchParams();
   const { projectId: contextProjectId, project } = useProject();
   const projectId = searchParams.get("projectId") ?? contextProjectId;
@@ -125,5 +125,13 @@ export default function CalendarPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function CalendarPageWrapper() {
+  return (
+    <Suspense>
+      <CalendarPage />
+    </Suspense>
   );
 }

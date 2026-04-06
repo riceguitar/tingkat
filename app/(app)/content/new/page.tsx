@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,15 @@ import type { PillarPage } from "@/types/database";
 
 const TONES = ["professional", "conversational", "authoritative", "friendly", "technical"];
 
-export default function NewContentPage() {
+export default function NewContentPageWrapper() {
+  return (
+    <Suspense>
+      <NewContentPage />
+    </Suspense>
+  );
+}
+
+function NewContentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { projects, projectId: contextProjectId } = useProject();

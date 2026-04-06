@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ interface Cluster {
 type SavedCluster = KeywordCluster & { keywords: Pick<Keyword, "id" | "keyword" | "search_volume" | "difficulty" | "intent">[] };
 type PillarOption = Pick<PillarPage, "id" | "title">;
 
-export default function KeywordResearchPage() {
+function KeywordResearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { projectId: contextProjectId, project } = useProject();
@@ -734,5 +734,13 @@ export default function KeywordResearchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function KeywordResearchPageWrapper() {
+  return (
+    <Suspense>
+      <KeywordResearchPage />
+    </Suspense>
   );
 }

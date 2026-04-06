@@ -27,6 +27,7 @@ export function useStreamGeneration() {
     projectId: string;
     articleId?: string;
     pillarPageId?: string | null;
+    clusterId?: string | null;
   }) => {
     setState({ streaming: true, content: "", articleId: params.articleId ?? null, wordCount: null, error: null });
 

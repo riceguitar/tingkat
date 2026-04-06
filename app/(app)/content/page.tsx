@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -19,7 +19,7 @@ const STATUS_VARIANTS: Record<string, "success" | "info" | "warning" | "destruct
   published: "success", scheduled: "info", draft: "secondary", failed: "destructive", publishing: "warning",
 };
 
-export default function ContentPage() {
+function ContentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { projectId: contextProjectId, project } = useProject();
@@ -163,5 +163,13 @@ export default function ContentPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+export default function ContentPageWrapper() {
+  return (
+    <Suspense>
+      <ContentPage />
+    </Suspense>
   );
 }
