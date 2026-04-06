@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
-import { Plus, FileText, ExternalLink, MousePointerClick } from "lucide-react";
+import { Plus, FileText, ExternalLink, MousePointerClick, FlaskConical } from "lucide-react";
 import { format } from "date-fns";
 import type { Article } from "@/types/database";
 import { useProject } from "@/lib/context/project-context";
@@ -132,11 +132,21 @@ export default function ContentPage() {
                     {format(new Date(a.updated_at), "MMM d")}
                   </td>
                   <td className="px-4 py-3">
-                    {a.wordpress_post_url && (
-                      <a href={a.wordpress_post_url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                      </a>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {a.generation_prompt?.startsWith("research-pipeline:") && (
+                        <Link
+                          href={`/content/research?articleId=${a.id}${projectId ? `&projectId=${projectId}` : ""}`}
+                          title="View research pipeline"
+                        >
+                          <FlaskConical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </Link>
+                      )}
+                      {a.wordpress_post_url && (
+                        <a href={a.wordpress_post_url} target="_blank" rel="noopener noreferrer" title="View on WordPress">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </a>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
