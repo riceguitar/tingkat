@@ -56,6 +56,8 @@ export default function KeywordResearchPage() {
   const [deletingCluster, setDeletingCluster] = useState<string | null>(null);
   const [editingCluster, setEditingCluster] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", color: "", intent: "", pillar_page_id: "" });
+  const [addKwInput, setAddKwInput] = useState("");
+  const [addingKw, setAddingKw] = useState(false);
   const [pillars, setPillars] = useState<PillarOption[]>([]);
   const [quickWins, setQuickWins] = useState<Array<{ query: string; clicks: number; impressions: number; avg_position: number }>>([]);
 
@@ -236,6 +238,30 @@ export default function KeywordResearchPage() {
   function startEditCluster(cluster: SavedCluster) {
     setEditingCluster(cluster.id);
     setEditForm({ name: cluster.name, color: cluster.color, intent: cluster.intent ?? "", pillar_page_id: cluster.pillar_page_id ?? "" });
+    setAddKwInput("");
+  }
+
+  async function addKeywordToSavedCluster(clusterId: string) {
+    const kw = addKwInput.trim();
+    if (!kw || !projectId) return;
+    setAddingKw(true);
+    const res = await fetch("/api/keywords", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId, keywords: [{ keyword: kw, clusterId }] }),
+    });
+    if (res.ok) {
+      const [saved] = await res.json();
+      setSavedClusters((prev) =>
+        prev.map((c) =>
+          c.id === clusterId
+            ? { ...c, keywords: [...c.keywords, { id: saved.id, keyword: saved.keyword, search_volume: null, difficulty: null, intent: null }] }
+            : c
+        )
+      );
+      setAddKwInput("");
+    }
+    setAddingKw(false);
   }
 
   async function handleSaveClusterEdit(id: string) {
@@ -579,6 +605,30 @@ export default function KeywordResearchPage() {
                             ))}
                           </select>
                         )}
+                        {/* Keywords while editing */}
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap gap-1 min-h-[24px]">
+                            {cluster.keywords.map((kw) => (
+                              <span key={kw.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">
+                                {kw.keyword}
+                              </span>
+                            ))}
+                          </div>
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); addKeywordToSavedCluster(cluster.id); }}
+                            className="flex gap-1"
+                          >
+                            <input
+                              value={addKwInput}
+                              onChange={(e) => setAddKwInput(e.target.value)}
+                              placeholder="Add keyword…"
+                              className="flex-1 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                            <Button type="submit" size="sm" variant="outline" className="h-7 text-xs px-2" disabled={addingKw || !addKwInput.trim()}>
+                              Add
+                            </Button>
+                          </form>
+                        </div>
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingCluster(null)} title="Cancel">
                             <X className="h-3.5 w-3.5" />

@@ -17,6 +17,16 @@ const ProjectContext = createContext<ProjectContextValue>({
   setProjectId: () => {},
 });
 
+const LS_KEY = "tingkat_active_project_id";
+
+function readLocalStorage(): string {
+  try {
+    return localStorage.getItem(LS_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function ProjectProvider({
   children,
   initialProjectId = "",
@@ -25,7 +35,7 @@ export function ProjectProvider({
   initialProjectId?: string;
 }) {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectIdState] = useState(initialProjectId);
+  const [projectId, setProjectIdState] = useState(initialProjectId || readLocalStorage());
 
   useEffect(() => {
     fetch("/api/projects")
@@ -33,13 +43,16 @@ export function ProjectProvider({
       .then((data: Project[]) => {
         setProjects(data);
         if (!projectId && data[0]) {
-          setProjectIdState(data[0].id);
+          const id = data[0].id;
+          setProjectIdState(id);
+          try { localStorage.setItem(LS_KEY, id); } catch { /* ignore */ }
         }
       });
   }, []);
 
   const setProjectId = useCallback((id: string) => {
     setProjectIdState(id);
+    try { localStorage.setItem(LS_KEY, id); } catch { /* ignore */ }
   }, []);
 
   const project = projects.find((p) => p.id === projectId) ?? null;

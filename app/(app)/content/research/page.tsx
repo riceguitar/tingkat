@@ -87,6 +87,9 @@ export default function ResearchGeneratePage() {
     projectId: urlProjectId ?? "",
     pillarPageId: "",
     clusterId: urlClusterId ?? "",
+    contentFormat: searchParams.get("contentFormat") ?? "ultimate-guide",
+    audienceLevel: searchParams.get("audienceLevel") ?? "intermediate",
+    pointOfView: searchParams.get("pointOfView") ?? "second-person",
   });
 
   // Load pillars immediately if we have a projectId from the URL
@@ -176,6 +179,7 @@ export default function ResearchGeneratePage() {
     if (!form.projectId || !form.primaryKeyword) return;
     reset();
     const kws = clusterKeywords ? clusterKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [];
+    const writingOpts = { contentFormat: form.contentFormat, audienceLevel: form.audienceLevel, pointOfView: form.pointOfView };
     runAll({
       keyword: form.keyword || form.primaryKeyword,
       primaryKeyword: form.primaryKeyword,
@@ -186,11 +190,13 @@ export default function ResearchGeneratePage() {
       projectId: form.projectId,
       clusterId: form.clusterId || undefined,
       pillarPageId: form.pillarPageId || null,
+      ...writingOpts,
     });
   }
 
   function handleRerunStep(step: StepName) {
     const kws = clusterKeywords ? clusterKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [];
+    const writingOpts = { contentFormat: form.contentFormat, audienceLevel: form.audienceLevel, pointOfView: form.pointOfView };
     runStep(step, {
       keyword: form.keyword || form.primaryKeyword,
       primaryKeyword: form.primaryKeyword,
@@ -201,6 +207,7 @@ export default function ResearchGeneratePage() {
       projectId: form.projectId,
       clusterId: form.clusterId || undefined,
       pillarPageId: form.pillarPageId || null,
+      ...writingOpts,
     });
   }
 
@@ -362,6 +369,47 @@ export default function ResearchGeneratePage() {
                         {n.toLocaleString()} words
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Writing options */}
+              <div className="space-y-1.5">
+                <Label>Content format</Label>
+                <Select value={form.contentFormat} onValueChange={(v) => setForm({ ...form, contentFormat: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ultimate-guide">Ultimate Guide</SelectItem>
+                    <SelectItem value="how-to-guide">How-To Guide</SelectItem>
+                    <SelectItem value="listicle">Listicle</SelectItem>
+                    <SelectItem value="comparison">Comparison / Best-of</SelectItem>
+                    <SelectItem value="case-study">Case Study</SelectItem>
+                    <SelectItem value="opinion">Opinion / Thought Leadership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Audience level</Label>
+                <Select value={form.audienceLevel} onValueChange={(v) => setForm({ ...form, audienceLevel: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="expert">Expert / Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Point of view</Label>
+                <Select value={form.pointOfView} onValueChange={(v) => setForm({ ...form, pointOfView: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="second-person">Second person (you/your)</SelectItem>
+                    <SelectItem value="first-person-plural">First person plural (we/our)</SelectItem>
+                    <SelectItem value="first-person-singular">First person singular (I/my)</SelectItem>
+                    <SelectItem value="third-person">Third person (they/the reader)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

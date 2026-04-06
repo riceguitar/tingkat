@@ -23,6 +23,9 @@ export interface GenerationParams {
   tone: string;
   targetWordCount: number;
   pillar?: { url: string; title: string } | null;
+  contentFormat?: string;
+  audienceLevel?: string;
+  pointOfView?: string;
 }
 
 export function buildArticlePrompt(params: GenerationParams): string {
@@ -31,11 +34,23 @@ export function buildArticlePrompt(params: GenerationParams): string {
 This blog post should naturally support and internally link to the above pillar page.`
     : "";
 
+  const simpleFormatLabels: Record<string, string> = {
+    "how-to-guide": "How-To Guide (step-by-step, numbered steps)",
+    "listicle": "Listicle (numbered/bulleted list as primary structure)",
+    "comparison": "Comparison / Best-of (compare options, include a comparison table)",
+    "case-study": "Case Study (problem → solution → results)",
+    "opinion": "Opinion / Thought Leadership",
+    "ultimate-guide": "Ultimate Guide (comprehensive, end-to-end coverage)",
+  };
+  const formatLine = simpleFormatLabels[params.contentFormat ?? ""] ? `\nContent format: ${simpleFormatLabels[params.contentFormat!]}` : "";
+  const audienceLine = params.audienceLevel ? `\nAudience level: ${params.audienceLevel}` : "";
+  const povLine = params.pointOfView ? `\nPoint of view: ${params.pointOfView.replace(/-/g, " ")}` : "";
+
   return `You are an expert SEO content writer. Generate a complete, high-quality SEO-optimized blog article.
 
 Target keyword: "${params.keyword}"
-Tone: ${params.tone}
-Target word count: ${params.targetWordCount} words
+Tone: ${params.tone}${formatLine}${audienceLine}${povLine}
+Target word count: ${params.targetWordCount} words — write exactly this many words, do not exceed
 Brief/notes: ${params.brief || "None provided"}${pillarContext}
 
 Output your response in this exact format:
@@ -69,13 +84,15 @@ Include a compelling introduction, well-structured body sections, and a conclusi
 // of text chunks
 // ============================================================
 export async function* streamArticle(
-  prompt: string
+  prompt: string,
+  targetWordCount = 1500
 ): AsyncGenerator<string> {
   const client = getClient();
+  const max_tokens = Math.min(Math.ceil(targetWordCount * 1.4) + 800, 8192);
 
   const stream = await client.messages.stream({
     model: MODEL,
-    max_tokens: 8192,
+    max_tokens,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -307,6 +324,9 @@ export interface ResearchArticleParams {
   targetWordCount: number;
   brief: string;
   pillar?: { url: string; title: string } | null;
+  contentFormat?: string;
+  audienceLevel?: string;
+  pointOfView?: string;
 }
 
 export function buildResearchArticlePrompt(params: ResearchArticleParams): string {
@@ -330,11 +350,35 @@ export function buildResearchArticlePrompt(params: ResearchArticleParams): strin
     ? `Semantic keywords to use naturally throughout: ${params.clusterKeywords.join(", ")}.`
     : "";
 
+  const formatLabels: Record<string, string> = {
+    "ultimate-guide": "Ultimate Guide (comprehensive, authoritative, covers topic end-to-end)",
+    "how-to-guide": "How-To Guide (step-by-step instructions, numbered steps, practical focus)",
+    "listicle": "Listicle (numbered or bulleted list as the primary structure, e.g. '10 best X')",
+    "comparison": "Comparison / Best-of (evaluate and compare options, include a comparison table)",
+    "case-study": "Case Study (real or representative example, problem → solution → results structure)",
+    "opinion": "Opinion / Thought Leadership (author's informed perspective, backed by evidence)",
+  };
+  const audienceLabels: Record<string, string> = {
+    "beginner": "Beginner (no assumed prior knowledge, explain jargon, use analogies)",
+    "intermediate": "Intermediate (some familiarity assumed, skip basics, focus on nuance)",
+    "expert": "Expert / Advanced (deep technical detail, skip fundamentals entirely)",
+  };
+  const povLabels: Record<string, string> = {
+    "second-person": "second person — address the reader as 'you' / 'your'",
+    "first-person-plural": "first person plural — use 'we' / 'our' (brand voice)",
+    "first-person-singular": "first person singular — use 'I' / 'my' (personal author voice)",
+    "third-person": "third person — refer to 'the reader' / 'businesses' / 'users'",
+  };
+
+  const formatNote = formatLabels[params.contentFormat ?? ""] ? `\nCONTENT FORMAT: ${formatLabels[params.contentFormat!]}` : "";
+  const audienceNote = audienceLabels[params.audienceLevel ?? ""] ? `\nAUDIENCE: ${audienceLabels[params.audienceLevel!]}` : "";
+  const povNote = povLabels[params.pointOfView ?? ""] ? `\nPOINT OF VIEW: ${povLabels[params.pointOfView!]}` : "";
+
   return `You are an expert SEO content writer with deep practitioner experience. Write a complete, EEAT-optimised article following the plan and research below.
 
 PRIMARY KEYWORD: "${params.primaryKeyword}"
-TONE: ${params.tone}
-TARGET WORD COUNT: approximately ${params.targetWordCount} words (competitor average is ${params.serpData.avg_competitor_word_count})
+TONE: ${params.tone}${formatNote}${audienceNote}${povNote}
+TARGET WORD COUNT: ${params.targetWordCount} words. Write exactly ${params.targetWordCount} words in the <article> block. Stop when you reach ${params.targetWordCount} words. Do not pad or add extra sections to reach a longer length. (Competitor average: ${params.serpData.avg_competitor_word_count} words — noted for context only.)
 BRIEF: ${params.brief || "None"}${pillarContext}
 
 ${semanticKeywords}
@@ -397,7 +441,7 @@ Output your response in this exact format:
 
 <article>
 Full markdown article. Use proper heading hierarchy (# H1, ## H2, ### H3).
-Write approximately ${params.targetWordCount} words — do not significantly exceed this.
+Write exactly ${params.targetWordCount} words. Stop at ${params.targetWordCount} words even if sections feel incomplete. Do not pad.
 Include all internal links as markdown [anchor text](url).
 Include all external citations as markdown [source name](url).
 Include a ## Frequently Asked Questions section with H3 for each question.
@@ -411,9 +455,12 @@ export async function* streamResearchArticle(
   const prompt = buildResearchArticlePrompt(params);
   const client = getClient();
 
+  // Hard ceiling: ~1.4 tokens/word + 800 tokens for meta/schema/outline wrappers
+  const max_tokens = Math.min(Math.ceil(params.targetWordCount * 1.4) + 800, 16000);
+
   const stream = await client.messages.stream({
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens,
     messages: [{ role: "user", content: prompt }],
   });
 

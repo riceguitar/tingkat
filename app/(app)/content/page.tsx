@@ -133,14 +133,12 @@ export default function ContentPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      {a.generation_prompt?.startsWith("research-pipeline:") && (
-                        <Link
-                          href={`/content/research?articleId=${a.id}${projectId ? `&projectId=${projectId}` : ""}`}
-                          title="View research pipeline"
-                        >
-                          <FlaskConical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                        </Link>
-                      )}
+                      <Link
+                        href={`/content/research?articleId=${a.id}${projectId ? `&projectId=${projectId}` : ""}${a.primary_keyword ? `&primaryKeyword=${encodeURIComponent(a.primary_keyword)}` : ""}`}
+                        title="View / run research pipeline"
+                      >
+                        <FlaskConical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      </Link>
                       {a.wordpress_post_url && (
                         <a href={a.wordpress_post_url} target="_blank" rel="noopener noreferrer" title="View on WordPress">
                           <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />

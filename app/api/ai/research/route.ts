@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
     pillarPageId,
     articleId: existingArticleId,
     startFromStep,
+    contentFormat,
+    audienceLevel,
+    pointOfView,
   } = body as {
     keyword: string;
     primaryKeyword: string;
@@ -53,6 +56,9 @@ export async function POST(req: NextRequest) {
     pillarPageId?: string;
     articleId?: string;
     startFromStep?: StepName;
+    contentFormat?: string;
+    audienceLevel?: string;
+    pointOfView?: string;
   };
 
   if (!primaryKeyword || !projectId) {
@@ -128,12 +134,25 @@ export async function POST(req: NextRequest) {
               controller.enqueue(encode(encoder, { type: "step_progress", step, message: `Fetching Google SERP for "${primaryKeyword}"…` }));
               serpData = await getSerpData(primaryKeyword);
 
-              // GSC cannibalization check
-              const { data: gscToken } = await supabase
-                .from("gsc_tokens")
-                .select("gsc_property_url")
-                .eq("project_id", projectId)
-                .single();
+              // Cannibalization check — GSC + sitemap pages
+              const [{ data: gscToken }, { data: sitemapMatch }] = await Promise.all([
+                supabase.from("gsc_tokens").select("gsc_property_url").eq("project_id", projectId).single(),
+                supabase
+                  .from("sitemap_pages")
+                  .select("url, title, h1")
+                  .eq("project_id", projectId)
+                  .or(`title.ilike.%${primaryKeyword}%,h1.ilike.%${primaryKeyword}%`)
+                  .limit(1)
+                  .single(),
+              ]);
+
+              if (sitemapMatch) {
+                controller.enqueue(encode(encoder, {
+                  type: "step_progress",
+                  step,
+                  message: `⚠️ Cannibalization warning: your sitemap already has a page targeting this keyword — "${sitemapMatch.h1 ?? sitemapMatch.title}" at ${sitemapMatch.url}`,
+                }));
+              }
 
               if (gscToken?.gsc_property_url) {
                 const { data: existingRank } = await supabase
@@ -181,7 +200,7 @@ export async function POST(req: NextRequest) {
           if (step === "internal_links") {
             controller.enqueue(encode(encoder, { type: "step_start", step, label: "Gathering internal link opportunities…" }));
             try {
-              const [articlesRes, pillarsRes] = await Promise.all([
+              const [articlesRes, pillarsRes, sitemapPagesRes] = await Promise.all([
                 supabase
                   .from("articles")
                   .select("title, slug")
@@ -193,8 +212,15 @@ export async function POST(req: NextRequest) {
                   .from("pillar_pages")
                   .select("title, url")
                   .eq("project_id", projectId),
+                supabase
+                  .from("sitemap_pages")
+                  .select("url, title, h1")
+                  .eq("project_id", projectId)
+                  .not("title", "is", null)
+                  .limit(100),
               ]);
 
+              const seenUrls = new Set<string>();
               const candidates: InternalLinkSource[] = [
                 ...(articlesRes.data ?? []).map((a) => ({
                   url: `/${a.slug}`,
@@ -206,7 +232,17 @@ export async function POST(req: NextRequest) {
                   title: p.title ?? "",
                   slug: p.url,
                 })),
-              ].filter((c) => c.title && c.url);
+                ...(sitemapPagesRes.data ?? []).map((p) => ({
+                  url: p.url,
+                  title: p.h1 ?? p.title ?? "",
+                  slug: p.url,
+                })),
+              ].filter((c) => {
+                if (!c.title || !c.url) return false;
+                if (seenUrls.has(c.url)) return false;
+                seenUrls.add(c.url);
+                return true;
+              });
 
               controller.enqueue(encode(encoder, {
                 type: "step_progress", step,
@@ -314,6 +350,9 @@ export async function POST(req: NextRequest) {
                 targetWordCount: effectiveWordCount,
                 brief,
                 pillar,
+                contentFormat,
+                audienceLevel,
+                pointOfView,
               })) {
                 fullText += chunk;
                 controller.enqueue(encode(encoder, { type: "chunk", content: chunk, articleId: articleId ?? "" }));
@@ -352,6 +391,7 @@ export async function POST(req: NextRequest) {
                       primaryKeyword, clusterKeywords, serpData,
                       internalLinks, externalLinks, competitionAnalysis,
                       writingPlan, tone, targetWordCount: effectiveWordCount, brief, pillar,
+                      contentFormat, audienceLevel, pointOfView,
                     }),
                   }).eq("id", articleId),
                   upsertResearch(supabase, articleId, primaryKeyword, {

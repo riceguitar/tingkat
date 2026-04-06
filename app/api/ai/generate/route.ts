@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       try {
         let fullText = "";
 
-        for await (const chunk of streamArticle(prompt)) {
+        for await (const chunk of streamArticle(prompt, targetWordCount ?? 1500)) {
           fullText += chunk;
           controller.enqueue(
             encoder.encode(

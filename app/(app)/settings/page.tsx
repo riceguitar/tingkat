@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Globe, KeyRound, BarChart3, ChevronRight } from "lucide-react";
+import { Globe, KeyRound, BarChart3, ChevronRight, Map } from "lucide-react";
 
 const sections = [
   { href: "/settings/wordpress", icon: Globe, title: "WordPress", description: "Connect your WordPress site for auto-publishing" },
   { href: "/settings/gsc", icon: BarChart3, title: "Google Search Console", description: "Connect GSC to import search analytics data" },
+  { href: "/settings/sitemaps", icon: Map, title: "Sitemaps", description: "Add project sitemaps for smarter internal linking and cannibalization detection" },
   { href: "/settings/api-keys", icon: KeyRound, title: "API Keys", description: "View status of configured API keys" },
 ];
 
