@@ -21,27 +21,32 @@ export default function NewContentPage() {
   const searchParams = useSearchParams();
   const { projects, projectId: contextProjectId } = useProject();
   const { generate, streaming, content, articleId, wordCount, error, reset } = useStreamGeneration();
-  const [form, setForm] = useState({ keyword: "", brief: "", tone: "professional", targetWordCount: 1500, projectId: "", pillarPageId: "" });
-  const [pillars, setPillars] = useState<PillarPage[]>([]);
-  const outputRef = useRef<HTMLDivElement>(null);
 
   const clusterName = searchParams.get("clusterName");
   const clusterKeywords = searchParams.get("keywords");
   const urlProjectId = searchParams.get("projectId");
   const urlClusterId = searchParams.get("clusterId");
 
+  const initialProjectId = urlProjectId ?? (typeof window !== "undefined" ? (localStorage.getItem("tingkat_active_project_id") ?? "") : "");
+  const [form, setForm] = useState({ keyword: clusterName ?? "", brief: clusterKeywords ? `Target keywords from cluster: ${clusterKeywords.split(",").slice(0, 10).join(", ")}` : "", tone: "professional", targetWordCount: 1500, projectId: initialProjectId, pillarPageId: "", clusterId: urlClusterId ?? "", contentFormat: "ultimate-guide", audienceLevel: "intermediate", pointOfView: "second-person" });
+  const [pillars, setPillars] = useState<PillarPage[]>([]);
+  const [clusters, setClusters] = useState<Array<{ id: string; name: string; keywords: Array<{ keyword: string }> }>>([]);
+  const outputRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const pid = urlProjectId ?? contextProjectId;
-    setForm((prev) => ({
-      ...prev,
-      projectId: pid,
-      keyword: clusterName ?? prev.keyword,
-      brief: clusterKeywords
-        ? `Target keywords from cluster: ${clusterKeywords.split(",").slice(0, 10).join(", ")}`
-        : prev.brief,
-    }));
-    if (pid) loadPillarsAndMaybePrefill(pid);
+    if (pid) {
+      setForm((prev) => ({ ...prev, projectId: pid }));
+      loadPillarsAndMaybePrefill(pid);
+      loadClusters(pid);
+    }
   }, [contextProjectId]);
+
+  async function loadClusters(pid: string) {
+    const res = await fetch(`/api/clusters?projectId=${pid}`);
+    const data = await res.json();
+    setClusters(Array.isArray(data) ? data : []);
+  }
 
   async function loadPillarsAndMaybePrefill(pid: string) {
     const res = await fetch(`/api/projects/${pid}/pillars`);
@@ -70,7 +75,7 @@ export default function NewContentPage() {
     e.preventDefault();
     if (!form.projectId) return;
     reset();
-    generate({ ...form, pillarPageId: form.pillarPageId || null });
+    generate({ ...form, pillarPageId: form.pillarPageId || null, clusterId: form.clusterId || null });
   }
 
   return (
@@ -82,9 +87,19 @@ export default function NewContentPage() {
             const params = new URLSearchParams();
             const pid = form.projectId || contextProjectId;
             if (pid) params.set("projectId", pid);
-            if (clusterName) params.set("clusterName", clusterName);
-            if (clusterKeywords) params.set("keywords", clusterKeywords);
-            if (urlClusterId) params.set("clusterId", urlClusterId);
+            if (form.keyword) params.set("primaryKeyword", form.keyword);
+            if (form.clusterId) params.set("clusterId", form.clusterId);
+            const selectedCluster = clusters.find((c) => c.id === form.clusterId);
+            if (selectedCluster) {
+              params.set("clusterName", selectedCluster.name);
+              params.set("keywords", selectedCluster.keywords.map((k) => k.keyword).join(","));
+            } else if (clusterName) {
+              params.set("clusterName", clusterName);
+              if (clusterKeywords) params.set("keywords", clusterKeywords);
+            }
+            if (form.contentFormat) params.set("contentFormat", form.contentFormat);
+            if (form.audienceLevel) params.set("audienceLevel", form.audienceLevel);
+            if (form.pointOfView) params.set("pointOfView", form.pointOfView);
             router.push(`/content/research?${params.toString()}`);
           }}
         >
@@ -119,8 +134,9 @@ export default function NewContentPage() {
                 <Select
                   value={form.projectId}
                   onValueChange={(v) => {
-                    setForm({ ...form, projectId: v, pillarPageId: "" });
+                    setForm({ ...form, projectId: v, pillarPageId: "", clusterId: "" });
                     loadPillarsAndMaybePrefill(v);
+                    loadClusters(v);
                   }}
                 >
                   <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
@@ -129,6 +145,39 @@ export default function NewContentPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {clusters.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" /> Keyword cluster
+                  </Label>
+                  <Select
+                    value={form.clusterId || "__none__"}
+                    onValueChange={(v) => {
+                      if (v === "__none__") {
+                        setForm({ ...form, clusterId: "" });
+                        return;
+                      }
+                      const cluster = clusters.find((c) => c.id === v);
+                      if (cluster) {
+                        const kws = cluster.keywords.map((k) => k.keyword);
+                        setForm({
+                          ...form,
+                          clusterId: v,
+                          keyword: cluster.name,
+                          brief: kws.length > 0 ? `Target keywords from cluster: ${kws.slice(0, 10).join(", ")}` : form.brief,
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="None (no cluster)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {clusters.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {pillars.length > 0 && (
                 <div className="space-y-1.5">
@@ -188,6 +237,46 @@ export default function NewContentPage() {
                     {[800, 1000, 1500, 2000, 2500, 3000].map((n) => (
                       <SelectItem key={n} value={String(n)}>{n.toLocaleString()} words</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Content format</Label>
+                <Select value={form.contentFormat} onValueChange={(v) => setForm({ ...form, contentFormat: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ultimate-guide">Ultimate Guide</SelectItem>
+                    <SelectItem value="how-to-guide">How-To Guide</SelectItem>
+                    <SelectItem value="listicle">Listicle</SelectItem>
+                    <SelectItem value="comparison">Comparison / Best-of</SelectItem>
+                    <SelectItem value="case-study">Case Study</SelectItem>
+                    <SelectItem value="opinion">Opinion / Thought Leadership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Audience level</Label>
+                <Select value={form.audienceLevel} onValueChange={(v) => setForm({ ...form, audienceLevel: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="expert">Expert / Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Point of view</Label>
+                <Select value={form.pointOfView} onValueChange={(v) => setForm({ ...form, pointOfView: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="second-person">Second person (you/your)</SelectItem>
+                    <SelectItem value="first-person-plural">First person plural (we/our)</SelectItem>
+                    <SelectItem value="first-person-singular">First person singular (I/my)</SelectItem>
+                    <SelectItem value="third-person">Third person (they/the reader)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

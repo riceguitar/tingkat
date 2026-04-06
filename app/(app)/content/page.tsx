@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
-import { Plus, FileText, ExternalLink, MousePointerClick } from "lucide-react";
+import { Plus, FileText, ExternalLink, MousePointerClick, FlaskConical, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import type { Article } from "@/types/database";
 import { useProject } from "@/lib/context/project-context";
@@ -62,6 +62,9 @@ export default function ContentPage() {
         title={project ? `${project.name} — Content` : "Content"}
         description={`${total} article${total !== 1 ? "s" : ""}`}
       >
+        <Button variant="outline" onClick={() => router.push("/content/service-area")}>
+          <MapPin className="h-4 w-4" /> Service Area Pages
+        </Button>
         <Button onClick={() => router.push(`/content/new${projectId ? `?projectId=${projectId}` : ""}`)}>
           <Plus className="h-4 w-4" /> Generate Article
         </Button>
@@ -132,11 +135,19 @@ export default function ContentPage() {
                     {format(new Date(a.updated_at), "MMM d")}
                   </td>
                   <td className="px-4 py-3">
-                    {a.wordpress_post_url && (
-                      <a href={a.wordpress_post_url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                      </a>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/content/research?articleId=${a.id}${projectId ? `&projectId=${projectId}` : ""}${a.primary_keyword ? `&primaryKeyword=${encodeURIComponent(a.primary_keyword)}` : ""}`}
+                        title="View / run research pipeline"
+                      >
+                        <FlaskConical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      </Link>
+                      {a.wordpress_post_url && (
+                        <a href={a.wordpress_post_url} target="_blank" rel="noopener noreferrer" title="View on WordPress">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </a>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

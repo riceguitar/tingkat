@@ -78,6 +78,17 @@ export interface Project {
   name: string;
   domain: string;
   description: string | null;
+  // Local SEO profile
+  business_type: string | null;      // 'service_area' | 'brick_mortar' | 'hybrid'
+  business_name: string | null;
+  city: string | null;
+  state_province: string | null;
+  country_code: string;
+  location_code: number;             // DataForSEO location code (default 2840 = US)
+  service_areas: string[];
+  nap_address: string | null;
+  nap_phone: string | null;
+  primary_category: string | null;   // e.g. 'Plumber', 'Dentist', 'HVAC'
   created_at: string;
   updated_at: string;
 }

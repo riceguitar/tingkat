@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Search, Sparkles, Save, TrendingUp, DollarSign, Target,
   ChevronDown, ChevronUp, X, Trash2, FileText, CheckCircle2,
-  Pencil, Check,
+  Pencil, Check, MapPin,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { useProject } from "@/lib/context/project-context";
@@ -56,8 +56,14 @@ export default function KeywordResearchPage() {
   const [deletingCluster, setDeletingCluster] = useState<string | null>(null);
   const [editingCluster, setEditingCluster] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", color: "", intent: "", pillar_page_id: "" });
+  const [addKwInput, setAddKwInput] = useState("");
+  const [addingKw, setAddingKw] = useState(false);
   const [pillars, setPillars] = useState<PillarOption[]>([]);
   const [quickWins, setQuickWins] = useState<Array<{ query: string; clicks: number; impressions: number; avg_position: number }>>([]);
+  const [researchLocationCode, setResearchLocationCode] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (projectId) {
@@ -99,6 +105,7 @@ export default function KeywordResearchPage() {
     });
     const data = await res.json();
     setResults(data.keywords ?? []);
+    setResearchLocationCode(data.locationCode ?? null);
     setLoading(false);
   }
 
@@ -236,6 +243,30 @@ export default function KeywordResearchPage() {
   function startEditCluster(cluster: SavedCluster) {
     setEditingCluster(cluster.id);
     setEditForm({ name: cluster.name, color: cluster.color, intent: cluster.intent ?? "", pillar_page_id: cluster.pillar_page_id ?? "" });
+    setAddKwInput("");
+  }
+
+  async function addKeywordToSavedCluster(clusterId: string) {
+    const kw = addKwInput.trim();
+    if (!kw || !projectId) return;
+    setAddingKw(true);
+    const res = await fetch("/api/keywords", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId, keywords: [{ keyword: kw, clusterId }] }),
+    });
+    if (res.ok) {
+      const [saved] = await res.json();
+      setSavedClusters((prev) =>
+        prev.map((c) =>
+          c.id === clusterId
+            ? { ...c, keywords: [...c.keywords, { id: saved.id, keyword: saved.keyword, search_volume: null, difficulty: null, intent: null }] }
+            : c
+        )
+      );
+      setAddKwInput("");
+    }
+    setAddingKw(false);
   }
 
   async function handleSaveClusterEdit(id: string) {
@@ -296,7 +327,7 @@ export default function KeywordResearchPage() {
               <Label>Seed keyword</Label>
               <Input value={seedKeyword} onChange={(e) => setSeedKeyword(e.target.value)} placeholder="e.g. email marketing" required />
             </div>
-            <Button type="submit" disabled={loading || !projectId}>
+            <Button type="submit" disabled={loading || (mounted && !projectId)}>
               <Search className="h-4 w-4" /> {loading ? "Researching..." : "Research"}
             </Button>
           </form>
@@ -307,7 +338,17 @@ export default function KeywordResearchPage() {
       {results.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-sm text-muted-foreground">{results.length} keywords found · {selected.size} selected</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm text-muted-foreground">{results.length} keywords found · {selected.size} selected</p>
+              {researchLocationCode && (
+                <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
+                  <MapPin className="h-3 w-3" />
+                  {project?.city && project?.state_province
+                    ? `${project.city}, ${project.state_province}`
+                    : `Location ${researchLocationCode}`}
+                </span>
+              )}
+            </div>
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={toggleAll}>
                 {selected.size === results.length ? "Deselect all" : "Select all"}
@@ -579,6 +620,30 @@ export default function KeywordResearchPage() {
                             ))}
                           </select>
                         )}
+                        {/* Keywords while editing */}
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap gap-1 min-h-[24px]">
+                            {cluster.keywords.map((kw) => (
+                              <span key={kw.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">
+                                {kw.keyword}
+                              </span>
+                            ))}
+                          </div>
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); addKeywordToSavedCluster(cluster.id); }}
+                            className="flex gap-1"
+                          >
+                            <input
+                              value={addKwInput}
+                              onChange={(e) => setAddKwInput(e.target.value)}
+                              placeholder="Add keyword…"
+                              className="flex-1 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                            <Button type="submit" size="sm" variant="outline" className="h-7 text-xs px-2" disabled={addingKw || !addKwInput.trim()}>
+                              Add
+                            </Button>
+                          </form>
+                        </div>
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingCluster(null)} title="Cancel">
                             <X className="h-3.5 w-3.5" />

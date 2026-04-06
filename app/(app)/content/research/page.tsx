@@ -63,7 +63,7 @@ export default function ResearchGeneratePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { projects, projectId: contextProjectId } = useProject();
-  const { steps, articleId, wordCount, error, isRunning, runAll, runStep, reset } =
+  const { steps, articleId, wordCount, error, isRunning, runAll, runStep, reset, hydrate } =
     useResearchPipeline();
 
   const [pillars, setPillars] = useState<PillarPage[]>([]);
@@ -74,6 +74,7 @@ export default function ResearchGeneratePage() {
   const clusterKeywords = searchParams.get("keywords");
   const urlProjectId = searchParams.get("projectId");
   const urlClusterId = searchParams.get("clusterId");
+  const urlArticleId = searchParams.get("articleId");
 
   const [form, setForm] = useState({
     keyword: clusterName ?? "",
@@ -86,6 +87,9 @@ export default function ResearchGeneratePage() {
     projectId: urlProjectId ?? "",
     pillarPageId: "",
     clusterId: urlClusterId ?? "",
+    contentFormat: searchParams.get("contentFormat") ?? "ultimate-guide",
+    audienceLevel: searchParams.get("audienceLevel") ?? "intermediate",
+    pointOfView: searchParams.get("pointOfView") ?? "second-person",
   });
 
   // Load pillars immediately if we have a projectId from the URL
@@ -113,6 +117,37 @@ export default function ResearchGeneratePage() {
       return next;
     });
   }, [steps]);
+
+  // Push articleId into URL so the page can be bookmarked / returned to
+  useEffect(() => {
+    if (articleId && !searchParams.get("articleId")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("articleId", articleId);
+      router.replace(`/content/research?${params.toString()}`, { scroll: false });
+    }
+  }, [articleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hydrate from saved research when ?articleId= is present on mount
+  useEffect(() => {
+    if (!urlArticleId) return;
+    fetch(`/api/articles/${urlArticleId}/research`)
+      .then((r) => r.json())
+      .then(({ article, research }) => {
+        if (article) {
+          setForm((prev) => ({
+            ...prev,
+            primaryKeyword: article.primary_keyword ?? prev.primaryKeyword,
+            keyword: article.primary_keyword ?? prev.keyword,
+            tone: article.tone ?? prev.tone,
+            targetWordCount: article.target_word_count ?? prev.targetWordCount,
+          }));
+        }
+        hydrate(urlArticleId, research);
+      })
+      .catch(() => {
+        // Hydration failure is non-fatal — user can still re-run
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll article generation
   useEffect(() => {
@@ -144,6 +179,7 @@ export default function ResearchGeneratePage() {
     if (!form.projectId || !form.primaryKeyword) return;
     reset();
     const kws = clusterKeywords ? clusterKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [];
+    const writingOpts = { contentFormat: form.contentFormat, audienceLevel: form.audienceLevel, pointOfView: form.pointOfView };
     runAll({
       keyword: form.keyword || form.primaryKeyword,
       primaryKeyword: form.primaryKeyword,
@@ -154,11 +190,13 @@ export default function ResearchGeneratePage() {
       projectId: form.projectId,
       clusterId: form.clusterId || undefined,
       pillarPageId: form.pillarPageId || null,
+      ...writingOpts,
     });
   }
 
   function handleRerunStep(step: StepName) {
     const kws = clusterKeywords ? clusterKeywords.split(",").map((k) => k.trim()).filter(Boolean) : [];
+    const writingOpts = { contentFormat: form.contentFormat, audienceLevel: form.audienceLevel, pointOfView: form.pointOfView };
     runStep(step, {
       keyword: form.keyword || form.primaryKeyword,
       primaryKeyword: form.primaryKeyword,
@@ -169,6 +207,7 @@ export default function ResearchGeneratePage() {
       projectId: form.projectId,
       clusterId: form.clusterId || undefined,
       pillarPageId: form.pillarPageId || null,
+      ...writingOpts,
     });
   }
 
@@ -330,6 +369,47 @@ export default function ResearchGeneratePage() {
                         {n.toLocaleString()} words
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Writing options */}
+              <div className="space-y-1.5">
+                <Label>Content format</Label>
+                <Select value={form.contentFormat} onValueChange={(v) => setForm({ ...form, contentFormat: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ultimate-guide">Ultimate Guide</SelectItem>
+                    <SelectItem value="how-to-guide">How-To Guide</SelectItem>
+                    <SelectItem value="listicle">Listicle</SelectItem>
+                    <SelectItem value="comparison">Comparison / Best-of</SelectItem>
+                    <SelectItem value="case-study">Case Study</SelectItem>
+                    <SelectItem value="opinion">Opinion / Thought Leadership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Audience level</Label>
+                <Select value={form.audienceLevel} onValueChange={(v) => setForm({ ...form, audienceLevel: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="expert">Expert / Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Point of view</Label>
+                <Select value={form.pointOfView} onValueChange={(v) => setForm({ ...form, pointOfView: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="second-person">Second person (you/your)</SelectItem>
+                    <SelectItem value="first-person-plural">First person plural (we/our)</SelectItem>
+                    <SelectItem value="first-person-singular">First person singular (I/my)</SelectItem>
+                    <SelectItem value="third-person">Third person (they/the reader)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -531,10 +611,19 @@ function StepResult({
         <div className="mt-3 space-y-4 text-sm">
           {/* Keyword metrics */}
           <div className="flex gap-4 flex-wrap">
-            <Metric label="Search Volume" value={data.keyword_metrics.volume.toLocaleString()} />
-            <Metric label="Difficulty" value={`${data.keyword_metrics.difficulty}/100`} />
-            <Metric label="CPC" value={`$${data.keyword_metrics.cpc.toFixed(2)}`} />
-            <Metric label="Avg Competitor Words" value={data.avg_competitor_word_count.toLocaleString()} />
+            <Metric
+              label="Search Volume"
+              value={data.keyword_metrics?.volume ? data.keyword_metrics.volume.toLocaleString() : "N/A"}
+            />
+            <Metric
+              label="Difficulty"
+              value={data.keyword_metrics?.difficulty ? `${data.keyword_metrics.difficulty}/100` : "N/A"}
+            />
+            <Metric
+              label="CPC"
+              value={data.keyword_metrics?.cpc ? `$${data.keyword_metrics.cpc.toFixed(2)}` : "N/A"}
+            />
+            <Metric label="Avg Competitor Words" value={data.avg_competitor_word_count?.toLocaleString() ?? "N/A"} />
           </div>
 
           {/* Top organic results */}

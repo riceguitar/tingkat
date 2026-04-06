@@ -129,12 +129,11 @@ export async function getSerpData(
           competition_index: number;
         }> | null;
       }>;
-    }>("/keywords_data/google_ads/keywords_for_keywords/live", [
+    }>("/keywords_data/google_ads/search_volume/live", [
       {
         keywords: [keyword],
         location_code: locationCode,
         language_code: languageCode,
-        limit: 1,
       },
     ]),
   ]);
@@ -179,7 +178,38 @@ export async function getSerpData(
         )
       : 1500;
 
-  const kwResult = kwRaw?.tasks?.[0]?.result?.[0];
+  let kwResult = kwRaw?.tasks?.[0]?.result?.[0];
+
+  // Fallback: if search_volume/live returned nothing (common for niche keywords with no Google Ads data),
+  // try keywords_for_keywords and find the exact match within the returned set.
+  if (!kwResult || (!kwResult.search_volume && !kwResult.cpc)) {
+    try {
+      const fallbackRaw = await request<{
+        tasks: Array<{
+          result: Array<{
+            keyword: string;
+            search_volume: number;
+            cpc: number;
+            competition_index: number;
+          }> | null;
+        }>;
+      }>("/keywords_data/google_ads/keywords_for_keywords/live", [
+        {
+          keywords: [keyword],
+          location_code: locationCode,
+          language_code: languageCode,
+          limit: 50,
+        },
+      ]);
+      const fallbackItems = fallbackRaw?.tasks?.[0]?.result ?? [];
+      const normalised = keyword.toLowerCase().trim();
+      const exactMatch = fallbackItems.find((r) => r.keyword?.toLowerCase().trim() === normalised);
+      if (exactMatch) kwResult = exactMatch;
+    } catch {
+      // ignore fallback failure
+    }
+  }
+
   const keyword_metrics = {
     volume: kwResult?.search_volume ?? 0,
     difficulty: kwResult?.competition_index ?? 0,
@@ -239,13 +269,18 @@ export async function getContentAnalysis(
   return results;
 }
 
+export interface SerpPositionResult extends SerpResult {
+  local_pack_position: number | null;
+  local_pack_present: boolean;
+}
+
 export async function getSerpPositions(
   domain: string,
   keywords: string[],
   locationCode = 2840,
   languageCode = "en",
   device: "desktop" | "mobile" = "desktop"
-): Promise<SerpResult[]> {
+): Promise<SerpPositionResult[]> {
   const tasks = keywords.map((keyword) => ({
     keyword,
     location_code: locationCode,
@@ -263,6 +298,7 @@ export async function getSerpPositions(
           rank_absolute: number;
           url: string;
           title: string;
+          items?: Array<{ type: string; domain?: string; url?: string }>;
         }>;
       }> | null;
     }>;
@@ -271,6 +307,7 @@ export async function getSerpPositions(
   return (data?.tasks ?? []).map((task) => {
     const keyword = task.data?.keyword ?? "";
     const items = task.result?.[0]?.items ?? [];
+
     const domainItem = items.find(
       (item) =>
         item.type === "organic" &&
@@ -278,11 +315,25 @@ export async function getSerpPositions(
         item.url.includes(domain)
     );
 
+    // Local pack: items of type "local_pack" contain sub-items listing businesses
+    const localPackItem = items.find((item) => item.type === "local_pack");
+    const localPackPresent = !!localPackItem;
+    let localPackPosition: number | null = null;
+
+    if (localPackItem?.items) {
+      const idx = localPackItem.items.findIndex(
+        (sub) => (sub.domain && sub.domain.includes(domain)) || (sub.url && sub.url.includes(domain))
+      );
+      if (idx !== -1) localPackPosition = idx + 1; // 1-indexed position within pack
+    }
+
     return {
       keyword,
       position: domainItem?.rank_absolute ?? null,
       url: domainItem?.url ?? null,
       title: domainItem?.title ?? null,
+      local_pack_position: localPackPosition,
+      local_pack_present: localPackPresent,
     };
   });
 }
