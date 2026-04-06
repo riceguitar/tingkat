@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
                 competitionAnalysis,
                 tone,
                 brief,
-                targetWordCount: Math.max(targetWordCount, competitionAnalysis?.recommended_word_count ?? targetWordCount),
+                targetWordCount,
               })) {
                 writingPlan += chunk;
                 controller.enqueue(encode(encoder, { type: "step_chunk", step, content: chunk }));
@@ -299,10 +299,7 @@ export async function POST(req: NextRequest) {
           if (step === "article_generation") {
             controller.enqueue(encode(encoder, { type: "step_start", step, label: "Writing the article…" }));
             try {
-              const effectiveWordCount = Math.max(
-                targetWordCount,
-                competitionAnalysis?.recommended_word_count ?? targetWordCount
-              );
+              const effectiveWordCount = targetWordCount;
 
               let fullText = "";
               for await (const chunk of streamResearchArticle({

@@ -59,7 +59,7 @@ Output your response in this exact format:
 
 <article>
 Full markdown article content here. Use proper heading hierarchy (# for H1, ## for H2, ### for H3).
-Include the target keyword naturally throughout. Write at least ${params.targetWordCount} words.
+Include the target keyword naturally throughout. Write approximately ${params.targetWordCount} words — do not significantly exceed this.
 Include a compelling introduction, well-structured body sections, and a conclusion.
 </article>`;
 }
@@ -334,7 +334,7 @@ export function buildResearchArticlePrompt(params: ResearchArticleParams): strin
 
 PRIMARY KEYWORD: "${params.primaryKeyword}"
 TONE: ${params.tone}
-TARGET WORD COUNT: ${params.targetWordCount} words minimum (competitor average is ${params.serpData.avg_competitor_word_count} — aim to beat them)
+TARGET WORD COUNT: approximately ${params.targetWordCount} words (competitor average is ${params.serpData.avg_competitor_word_count})
 BRIEF: ${params.brief || "None"}${pillarContext}
 
 ${semanticKeywords}
@@ -397,7 +397,7 @@ Output your response in this exact format:
 
 <article>
 Full markdown article. Use proper heading hierarchy (# H1, ## H2, ### H3).
-Write at least ${params.targetWordCount} words.
+Write approximately ${params.targetWordCount} words — do not significantly exceed this.
 Include all internal links as markdown [anchor text](url).
 Include all external citations as markdown [source name](url).
 Include a ## Frequently Asked Questions section with H3 for each question.
