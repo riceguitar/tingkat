@@ -32,7 +32,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes
-  if (pathname.startsWith("/login") || pathname.startsWith("/auth")) {
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/auth")
+  ) {
     if (user) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
