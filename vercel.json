@@ -2,15 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/publish",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/rank-snapshot",
+      "path": "/api/cron/daily",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/gsc-sync",
-      "schedule": "0 7 * * *"
     }
   ]
 }
