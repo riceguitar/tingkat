@@ -109,7 +109,7 @@ export default function ServiceAreaPage() {
             tone,
             targetWordCount,
             projectId,
-            clusterId: clusterId || undefined,
+            clusterId: clusterId === "__none__" ? undefined : clusterId || undefined,
           }),
         });
 
@@ -271,7 +271,7 @@ export default function ServiceAreaPage() {
               <Select value={clusterId} onValueChange={setClusterId} disabled={running}>
                 <SelectTrigger><SelectValue placeholder="No cluster" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No cluster</SelectItem>
+                  <SelectItem value="__none__">No cluster</SelectItem>
                   {clusters.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
