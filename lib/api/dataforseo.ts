@@ -178,7 +178,38 @@ export async function getSerpData(
         )
       : 1500;
 
-  const kwResult = kwRaw?.tasks?.[0]?.result?.[0];
+  let kwResult = kwRaw?.tasks?.[0]?.result?.[0];
+
+  // Fallback: if search_volume/live returned nothing (common for niche keywords with no Google Ads data),
+  // try keywords_for_keywords and find the exact match within the returned set.
+  if (!kwResult || (!kwResult.search_volume && !kwResult.cpc)) {
+    try {
+      const fallbackRaw = await request<{
+        tasks: Array<{
+          result: Array<{
+            keyword: string;
+            search_volume: number;
+            cpc: number;
+            competition_index: number;
+          }> | null;
+        }>;
+      }>("/keywords_data/google_ads/keywords_for_keywords/live", [
+        {
+          keywords: [keyword],
+          location_code: locationCode,
+          language_code: languageCode,
+          limit: 50,
+        },
+      ]);
+      const fallbackItems = fallbackRaw?.tasks?.[0]?.result ?? [];
+      const normalised = keyword.toLowerCase().trim();
+      const exactMatch = fallbackItems.find((r) => r.keyword?.toLowerCase().trim() === normalised);
+      if (exactMatch) kwResult = exactMatch;
+    } catch {
+      // ignore fallback failure
+    }
+  }
+
   const keyword_metrics = {
     volume: kwResult?.search_volume ?? 0,
     difficulty: kwResult?.competition_index ?? 0,
