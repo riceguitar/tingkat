@@ -91,14 +91,13 @@ export function Sidebar() {
         )}
 
         {/* Project-scoped items */}
-        {projectId && projectNavItems.map((item) => {
+        {projectNavItems.map((item) => {
           const Icon = item.icon;
-          const href = `/${item.key}?projectId=${projectId}`;
           const active = pathname === `/${item.key}` || pathname.startsWith(`/${item.key}/`);
           return (
             <Link
               key={item.key}
-              href={href}
+              href={`/${item.key}`}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 active
