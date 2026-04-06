@@ -255,66 +255,33 @@ export async function* streamWritingPlan(
 
   const paaList = params.serpData.paa.slice(0, 8).map((q) => `- ${q}`).join("\n") || "None found";
 
-  const prompt = `You are an expert SEO content strategist. Create a detailed article writing plan for the article described below. This plan will be handed directly to a writer.
+  const prompt = `You are an SEO content strategist. Produce a compact article outline — not a writer's brief. The outline will be fed directly into an article generator, so brevity is critical. Total output must be under 400 words.
 
 PRIMARY KEYWORD: "${params.primaryKeyword}"
-SEMANTIC KEYWORDS TO COVER: ${params.clusterKeywords.join(", ") || "none"}
-TONE: ${params.tone}
-TARGET WORD COUNT: ${params.targetWordCount} words (competitor average: ${params.serpData.avg_competitor_word_count})
-BRIEF: ${params.brief || "None provided"}
+TONE: ${params.tone} | TARGET: ${params.targetWordCount} words
+UNIQUE ANGLE: ${params.competitionAnalysis.unique_angle}
+FEATURED SNIPPET TARGET: ${params.competitionAnalysis.featured_snippet_opportunity}
 
-UNIQUE ANGLE TO TAKE:
-${params.competitionAnalysis.unique_angle}
+Output ONLY this structure (no extra commentary):
 
-CONTENT GAPS TO FILL:
-${params.competitionAnalysis.content_gaps.map((g) => `- ${g}`).join("\n")}
+## [H1 title — include primary keyword]
+**Meta:** [150-160 char meta description]
+**Schema:** [Article | FAQPage | HowTo | Article+FAQPage]
 
-FEATURED SNIPPET OPPORTUNITY:
-${params.competitionAnalysis.featured_snippet_opportunity}
+### Sections
+[List each section as a single line: ## Heading — one-sentence topic note. Add "· link: [anchor]→URL" only if an internal link belongs here.]
+${internalLinkList !== "None available" ? `\nINTERNAL LINKS AVAILABLE:\n${internalLinkList}` : ""}
+${externalLinkList !== "None available" ? `\nEXTERNAL SOURCES:\n${externalLinkList}` : ""}
 
-PEOPLE ALSO ASK (use as FAQs):
+### FAQ
 ${paaList}
 
-INTERNAL LINKS TO WEAVE IN:
-${internalLinkList}
-
-EXTERNAL SOURCES TO CITE:
-${externalLinkList}
-
----
-
-Produce the writing plan in this format:
-
-## H1: [Exact article title with primary keyword]
-
-**Meta description** (150-160 chars): [write it here]
-
-**Schema type**: [Article | FAQPage | HowTo | Article+FAQPage]
-
----
-
-### Outline
-
-For each section, specify:
-- The H2/H3 heading
-- 2-3 bullet points of what to cover
-- Where to place internal links (with anchor text)
-- Where to cite external sources
-- Word count target for this section
-
----
-
-### FAQ Section
-List the 4-6 FAQ questions (from PAA) with a brief note on what each answer should cover.
-
----
-
-### EEAT Notes
-3-5 specific instructions for the writer to embed expertise, authoritativeness, and trust signals (e.g., include a statistic from [source], write from practitioner POV, add a [STAT: ...] placeholder).`;
+### EEAT
+[2-3 lines: practitioner angle, one [STAT: ...] placeholder to include, featured snippet section name]`;
 
   const stream = await client.messages.stream({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 1500,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -434,6 +401,7 @@ Write at least ${params.targetWordCount} words.
 Include all internal links as markdown [anchor text](url).
 Include all external citations as markdown [source name](url).
 Include a ## Frequently Asked Questions section with H3 for each question.
+After each major H2 section, insert one image placeholder on its own line: [IMAGE: brief alt-text description of a relevant image for this section]. Include 3–5 image placeholders total.
 </article>`;
 }
 

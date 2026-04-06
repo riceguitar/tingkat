@@ -63,7 +63,7 @@ export default function ResearchGeneratePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { projects, projectId: contextProjectId } = useProject();
-  const { steps, articleId, wordCount, error, isRunning, runAll, runStep, reset } =
+  const { steps, articleId, wordCount, error, isRunning, runAll, runStep, reset, hydrate } =
     useResearchPipeline();
 
   const [pillars, setPillars] = useState<PillarPage[]>([]);
@@ -74,6 +74,7 @@ export default function ResearchGeneratePage() {
   const clusterKeywords = searchParams.get("keywords");
   const urlProjectId = searchParams.get("projectId");
   const urlClusterId = searchParams.get("clusterId");
+  const urlArticleId = searchParams.get("articleId");
 
   const [form, setForm] = useState({
     keyword: clusterName ?? "",
@@ -113,6 +114,37 @@ export default function ResearchGeneratePage() {
       return next;
     });
   }, [steps]);
+
+  // Push articleId into URL so the page can be bookmarked / returned to
+  useEffect(() => {
+    if (articleId && !searchParams.get("articleId")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("articleId", articleId);
+      router.replace(`/content/research?${params.toString()}`, { scroll: false });
+    }
+  }, [articleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hydrate from saved research when ?articleId= is present on mount
+  useEffect(() => {
+    if (!urlArticleId) return;
+    fetch(`/api/articles/${urlArticleId}/research`)
+      .then((r) => r.json())
+      .then(({ article, research }) => {
+        if (article) {
+          setForm((prev) => ({
+            ...prev,
+            primaryKeyword: article.primary_keyword ?? prev.primaryKeyword,
+            keyword: article.primary_keyword ?? prev.keyword,
+            tone: article.tone ?? prev.tone,
+            targetWordCount: article.target_word_count ?? prev.targetWordCount,
+          }));
+        }
+        hydrate(urlArticleId, research);
+      })
+      .catch(() => {
+        // Hydration failure is non-fatal — user can still re-run
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll article generation
   useEffect(() => {

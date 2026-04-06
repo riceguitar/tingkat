@@ -208,6 +208,46 @@ export function useResearchPipeline() {
     updateStep(step, { data });
   }, [updateStep]);
 
+  const hydrate = useCallback(
+    (
+      articleId: string,
+      research: {
+        serp_data?: unknown;
+        internal_links?: unknown;
+        external_links?: unknown;
+        competition_analysis?: unknown;
+        writing_plan?: string | null;
+      } | null
+    ) => {
+      articleIdRef.current = articleId;
+      setState({
+        articleId,
+        wordCount: null,
+        error: null,
+        isRunning: false,
+        steps: {
+          serp_research: research?.serp_data
+            ? { status: "complete", data: research.serp_data }
+            : { status: "idle" },
+          internal_links: research?.internal_links
+            ? { status: "complete", data: research.internal_links }
+            : { status: "idle" },
+          external_links: research?.external_links
+            ? { status: "complete", data: research.external_links }
+            : { status: "idle" },
+          competition_analysis: research?.competition_analysis
+            ? { status: "complete", data: research.competition_analysis }
+            : { status: "idle" },
+          writing_plan: research?.writing_plan
+            ? { status: "complete", streamContent: research.writing_plan }
+            : { status: "idle" },
+          article_generation: { status: "complete" },
+        },
+      });
+    },
+    []
+  );
+
   const reset = useCallback(() => {
     articleIdRef.current = null;
     setState({
@@ -219,5 +259,5 @@ export function useResearchPipeline() {
     });
   }, []);
 
-  return { ...state, runAll, runStep, updateStepData, reset };
+  return { ...state, runAll, runStep, updateStepData, reset, hydrate };
 }

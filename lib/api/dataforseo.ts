@@ -129,12 +129,11 @@ export async function getSerpData(
           competition_index: number;
         }> | null;
       }>;
-    }>("/keywords_data/google_ads/keywords_for_keywords/live", [
+    }>("/keywords_data/google_ads/search_volume/live", [
       {
         keywords: [keyword],
         location_code: locationCode,
         language_code: languageCode,
-        limit: 1,
       },
     ]),
   ]);
