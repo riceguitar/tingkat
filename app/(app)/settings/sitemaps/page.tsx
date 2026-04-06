@@ -22,7 +22,7 @@ interface Sitemap {
 
 export default function SitemapsSettingsPage() {
   const { projects, projectId: contextProjectId } = useProject();
-  const [projectId, setProjectId] = useState(contextProjectId);
+  const [projectId, setProjectId] = useState("");
   const [sitemaps, setSitemaps] = useState<Sitemap[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [adding, setAdding] = useState(false);
@@ -31,7 +31,7 @@ export default function SitemapsSettingsPage() {
   const [samplePages, setSamplePages] = useState<Record<string, Array<{ url: string; title: string | null }>>>({});
 
   useEffect(() => {
-    if (!projectId && contextProjectId) setProjectId(contextProjectId);
+    if (contextProjectId) setProjectId((prev) => prev || contextProjectId);
   }, [contextProjectId]);
 
   const loadSitemaps = useCallback(async () => {
