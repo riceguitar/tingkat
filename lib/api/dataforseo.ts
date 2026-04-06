@@ -269,13 +269,18 @@ export async function getContentAnalysis(
   return results;
 }
 
+export interface SerpPositionResult extends SerpResult {
+  local_pack_position: number | null;
+  local_pack_present: boolean;
+}
+
 export async function getSerpPositions(
   domain: string,
   keywords: string[],
   locationCode = 2840,
   languageCode = "en",
   device: "desktop" | "mobile" = "desktop"
-): Promise<SerpResult[]> {
+): Promise<SerpPositionResult[]> {
   const tasks = keywords.map((keyword) => ({
     keyword,
     location_code: locationCode,
@@ -293,6 +298,7 @@ export async function getSerpPositions(
           rank_absolute: number;
           url: string;
           title: string;
+          items?: Array<{ type: string; domain?: string; url?: string }>;
         }>;
       }> | null;
     }>;
@@ -301,6 +307,7 @@ export async function getSerpPositions(
   return (data?.tasks ?? []).map((task) => {
     const keyword = task.data?.keyword ?? "";
     const items = task.result?.[0]?.items ?? [];
+
     const domainItem = items.find(
       (item) =>
         item.type === "organic" &&
@@ -308,11 +315,25 @@ export async function getSerpPositions(
         item.url.includes(domain)
     );
 
+    // Local pack: items of type "local_pack" contain sub-items listing businesses
+    const localPackItem = items.find((item) => item.type === "local_pack");
+    const localPackPresent = !!localPackItem;
+    let localPackPosition: number | null = null;
+
+    if (localPackItem?.items) {
+      const idx = localPackItem.items.findIndex(
+        (sub) => (sub.domain && sub.domain.includes(domain)) || (sub.url && sub.url.includes(domain))
+      );
+      if (idx !== -1) localPackPosition = idx + 1; // 1-indexed position within pack
+    }
+
     return {
       keyword,
       position: domainItem?.rank_absolute ?? null,
       url: domainItem?.url ?? null,
       title: domainItem?.title ?? null,
+      local_pack_position: localPackPosition,
+      local_pack_present: localPackPresent,
     };
   });
 }

@@ -15,6 +15,20 @@ function getClient(): Anthropic {
 }
 
 // ============================================================
+// Local SEO context (shared between generation and research)
+// ============================================================
+export interface LocalContext {
+  businessName?: string | null;
+  businessType?: string | null;
+  city?: string | null;
+  stateProvince?: string | null;
+  serviceAreas?: string[];
+  napAddress?: string | null;
+  napPhone?: string | null;
+  primaryCategory?: string | null;
+}
+
+// ============================================================
 // Article generation prompt
 // ============================================================
 export interface GenerationParams {
@@ -26,6 +40,7 @@ export interface GenerationParams {
   contentFormat?: string;
   audienceLevel?: string;
   pointOfView?: string;
+  localContext?: LocalContext | null;
 }
 
 export function buildArticlePrompt(params: GenerationParams): string {
@@ -46,12 +61,17 @@ This blog post should naturally support and internally link to the above pillar 
   const audienceLine = params.audienceLevel ? `\nAudience level: ${params.audienceLevel}` : "";
   const povLine = params.pointOfView ? `\nPoint of view: ${params.pointOfView.replace(/-/g, " ")}` : "";
 
+  const lc = params.localContext;
+  const localBlock = lc?.city
+    ? `\n\nBUSINESS CONTEXT:\nBusiness: ${lc.businessName ?? "the business"} — ${lc.primaryCategory ?? lc.businessType ?? "local business"} in ${lc.city}${lc.stateProvince ? `, ${lc.stateProvince}` : ""}\n${lc.serviceAreas?.length ? `Service areas: ${lc.serviceAreas.join(", ")}\n` : ""}${lc.napAddress ? `Address: ${lc.napAddress}\n` : ""}${lc.napPhone ? `Phone: ${lc.napPhone}\n` : ""}LOCAL SEO REQUIREMENTS:\n- Naturally weave "${lc.city}" and service area names into the article\n- Include the business name where contextually appropriate\n- Structure one section as a local service area overview`
+    : "";
+
   return `You are an expert SEO content writer. Generate a complete, high-quality SEO-optimized blog article.
 
 Target keyword: "${params.keyword}"
 Tone: ${params.tone}${formatLine}${audienceLine}${povLine}
 Target word count: ${params.targetWordCount} words — write exactly this many words, do not exceed
-Brief/notes: ${params.brief || "None provided"}${pillarContext}
+Brief/notes: ${params.brief || "None provided"}${pillarContext}${localBlock}
 
 Output your response in this exact format:
 
@@ -327,6 +347,7 @@ export interface ResearchArticleParams {
   contentFormat?: string;
   audienceLevel?: string;
   pointOfView?: string;
+  localContext?: LocalContext | null;
 }
 
 export function buildResearchArticlePrompt(params: ResearchArticleParams): string {
@@ -374,12 +395,21 @@ export function buildResearchArticlePrompt(params: ResearchArticleParams): strin
   const audienceNote = audienceLabels[params.audienceLevel ?? ""] ? `\nAUDIENCE: ${audienceLabels[params.audienceLevel!]}` : "";
   const povNote = povLabels[params.pointOfView ?? ""] ? `\nPOINT OF VIEW: ${povLabels[params.pointOfView!]}` : "";
 
+  const lc = params.localContext;
+  const localBlock = lc?.city
+    ? `\nBUSINESS CONTEXT:\nBusiness: ${lc.businessName ?? "the business"} — ${lc.primaryCategory ?? lc.businessType ?? "local business"} in ${lc.city}${lc.stateProvince ? `, ${lc.stateProvince}` : ""}\n${lc.serviceAreas?.length ? `Service areas: ${lc.serviceAreas.join(", ")}\n` : ""}${lc.napAddress ? `Address: ${lc.napAddress}\n` : ""}${lc.napPhone ? `Phone: ${lc.napPhone}\n` : ""}LOCAL SEO REQUIREMENTS:\n- Naturally weave "${lc.city}" and service area names throughout the article\n- Reference the business name where contextually appropriate\n- Include a dedicated section covering service areas\n- Schema markup must use LocalBusiness type (see schema block below)`
+    : "";
+
+  const localBusinessSchemaNode = lc?.city
+    ? `,\n    {\n      "@type": "${lc.primaryCategory ?? "LocalBusiness"}",\n      "name": "${lc.businessName ?? ""}",\n      "areaServed": [${(lc.serviceAreas ?? [lc.city]).map((a) => `"${a}"`).join(", ")}]${lc.napAddress ? `,\n      "address": { "@type": "PostalAddress", "streetAddress": "${lc.napAddress}" }` : ""}${lc.napPhone ? `,\n      "telephone": "${lc.napPhone}"` : ""}\n    }`
+    : "";
+
   return `You are an expert SEO content writer with deep practitioner experience. Write a complete, EEAT-optimised article following the plan and research below.
 
 PRIMARY KEYWORD: "${params.primaryKeyword}"
 TONE: ${params.tone}${formatNote}${audienceNote}${povNote}
 TARGET WORD COUNT: ${params.targetWordCount} words. Write exactly ${params.targetWordCount} words in the <article> block. Stop when you reach ${params.targetWordCount} words. Do not pad or add extra sections to reach a longer length. (Competitor average: ${params.serpData.avg_competitor_word_count} words — noted for context only.)
-BRIEF: ${params.brief || "None"}${pillarContext}
+BRIEF: ${params.brief || "None"}${pillarContext}${localBlock}
 
 ${semanticKeywords}
 
@@ -430,7 +460,7 @@ Output your response in this exact format:
       "mainEntity": [
         { "@type": "Question", "name": "[FAQ Q1]", "acceptedAnswer": { "@type": "Answer", "text": "[concise answer]" } }
       ]
-    }
+    }${localBusinessSchemaNode}
   ]
 }
 </schema>

@@ -12,16 +12,34 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createClient();
 
-  // Fetch pillar page if provided
+  // Fetch project local profile and pillar page in parallel
+  const [projectRes, pillarRes] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("business_name, business_type, city, state_province, service_areas, nap_address, nap_phone, primary_category")
+      .eq("id", projectId)
+      .single(),
+    pillarPageId
+      ? supabase.from("pillar_pages").select("url, title").eq("id", pillarPageId).single()
+      : Promise.resolve({ data: null }),
+  ]);
+
   let pillar: { url: string; title: string } | null = null;
-  if (pillarPageId) {
-    const { data: pillarData } = await supabase
-      .from("pillar_pages")
-      .select("url, title")
-      .eq("id", pillarPageId)
-      .single();
-    if (pillarData) pillar = pillarData;
-  }
+  if (pillarRes.data) pillar = pillarRes.data as { url: string; title: string };
+
+  const p = projectRes.data;
+  const localContext = p?.city
+    ? {
+        businessName: p.business_name,
+        businessType: p.business_type,
+        city: p.city,
+        stateProvince: p.state_province,
+        serviceAreas: p.service_areas ?? [],
+        napAddress: p.nap_address,
+        napPhone: p.nap_phone,
+        primaryCategory: p.primary_category,
+      }
+    : null;
 
   const prompt = buildArticlePrompt({
     keyword,
@@ -29,6 +47,7 @@ export async function POST(req: NextRequest) {
     tone: tone ?? "professional",
     targetWordCount: targetWordCount ?? 1500,
     pillar,
+    localContext,
   });
 
   let currentArticleId = articleId;

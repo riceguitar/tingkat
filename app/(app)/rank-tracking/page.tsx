@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { RefreshCw, TrendingUp, TrendingDown, Minus, MousePointerClick, Eye } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, Minus, MousePointerClick, Eye, MapPin } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { useProject } from "@/lib/context/project-context";
 
@@ -29,6 +29,7 @@ export default function RankTrackingPage() {
   const projectId = searchParams.get("projectId") ?? contextProjectId;
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [localPackMap, setLocalPackMap] = useState<Map<string, { position: number | null; pack_present: boolean }>>(new Map());
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedKeywordId, setSelectedKeywordId] = useState<string | null>(null);
@@ -49,6 +50,11 @@ export default function RankTrackingPage() {
     ]);
     const rankData = await rankRes.json();
     setSnapshots(rankData.snapshots ?? []);
+    const lpMap = new Map<string, { position: number | null; pack_present: boolean }>();
+    for (const lp of (rankData.localPack ?? [])) {
+      lpMap.set(lp.keyword_id, { position: lp.position, pack_present: lp.pack_present });
+    }
+    setLocalPackMap(lpMap);
     const gscData = await gscRes.json();
     if (gscData.topQueries) setGscPerf(gscData);
     setLoading(false);
@@ -133,6 +139,11 @@ export default function RankTrackingPage() {
                     <th className="px-4 py-3 text-left font-medium">Keyword</th>
                     <th className="px-4 py-3 text-right font-medium">Position</th>
                     <th className="px-4 py-3 text-right font-medium">Change</th>
+                    {localPackMap.size > 0 && (
+                      <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 inline-block mr-1" />Pack
+                      </th>
+                    )}
                     {gscPerf && (
                       <>
                         <th className="px-4 py-3 text-right font-medium text-muted-foreground">
@@ -170,6 +181,19 @@ export default function RankTrackingPage() {
                             kw.change < 0 ? <span className="text-red-600 flex items-center justify-end gap-0.5"><TrendingDown className="h-3.5 w-3.5" />{kw.change}</span> :
                             <Minus className="h-4 w-4 text-muted-foreground ml-auto" />}
                         </td>
+                        {localPackMap.size > 0 && (() => {
+                          const lp = localPackMap.get(kw.id);
+                          return (
+                            <td className="px-4 py-2.5 text-right text-xs">
+                              {!lp ? <span className="text-muted-foreground">—</span>
+                                : !lp.pack_present ? <span className="text-muted-foreground">No pack</span>
+                                : lp.position != null
+                                  ? <Badge variant="success" className="text-xs">#{lp.position}</Badge>
+                                  : <span className="text-muted-foreground text-xs">Not in pack</span>
+                              }
+                            </td>
+                          );
+                        })()}
                         {gscPerf && (
                           <>
                             <td className="px-4 py-2.5 text-right text-muted-foreground text-xs">

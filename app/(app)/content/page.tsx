@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
-import { Plus, FileText, ExternalLink, MousePointerClick, FlaskConical } from "lucide-react";
+import { Plus, FileText, ExternalLink, MousePointerClick, FlaskConical, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import type { Article } from "@/types/database";
 import { useProject } from "@/lib/context/project-context";
@@ -62,6 +62,9 @@ export default function ContentPage() {
         title={project ? `${project.name} — Content` : "Content"}
         description={`${total} article${total !== 1 ? "s" : ""}`}
       >
+        <Button variant="outline" onClick={() => router.push("/content/service-area")}>
+          <MapPin className="h-4 w-4" /> Service Area Pages
+        </Button>
         <Button onClick={() => router.push(`/content/new${projectId ? `?projectId=${projectId}` : ""}`)}>
           <Plus className="h-4 w-4" /> Generate Article
         </Button>

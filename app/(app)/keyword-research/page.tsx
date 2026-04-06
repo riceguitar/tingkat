@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Search, Sparkles, Save, TrendingUp, DollarSign, Target,
   ChevronDown, ChevronUp, X, Trash2, FileText, CheckCircle2,
-  Pencil, Check,
+  Pencil, Check, MapPin,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { useProject } from "@/lib/context/project-context";
@@ -60,6 +60,7 @@ export default function KeywordResearchPage() {
   const [addingKw, setAddingKw] = useState(false);
   const [pillars, setPillars] = useState<PillarOption[]>([]);
   const [quickWins, setQuickWins] = useState<Array<{ query: string; clicks: number; impressions: number; avg_position: number }>>([]);
+  const [researchLocationCode, setResearchLocationCode] = useState<number | null>(null);
 
   useEffect(() => {
     if (projectId) {
@@ -101,6 +102,7 @@ export default function KeywordResearchPage() {
     });
     const data = await res.json();
     setResults(data.keywords ?? []);
+    setResearchLocationCode(data.locationCode ?? null);
     setLoading(false);
   }
 
@@ -333,7 +335,17 @@ export default function KeywordResearchPage() {
       {results.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-sm text-muted-foreground">{results.length} keywords found · {selected.size} selected</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm text-muted-foreground">{results.length} keywords found · {selected.size} selected</p>
+              {researchLocationCode && (
+                <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
+                  <MapPin className="h-3 w-3" />
+                  {project?.city && project?.state_province
+                    ? `${project.city}, ${project.state_province}`
+                    : `Location ${researchLocationCode}`}
+                </span>
+              )}
+            </div>
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={toggleAll}>
                 {selected.size === results.length ? "Deselect all" : "Select all"}

@@ -67,16 +67,34 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createClient();
 
-  // Resolve pillar page
+  // Resolve pillar page and project local profile in parallel
+  const [pillarRes, projectRes] = await Promise.all([
+    pillarPageId
+      ? supabase.from("pillar_pages").select("url, title").eq("id", pillarPageId).single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("projects")
+      .select("business_name, business_type, city, state_province, service_areas, nap_address, nap_phone, primary_category")
+      .eq("id", projectId)
+      .single(),
+  ]);
+
   let pillar: { url: string; title: string } | null = null;
-  if (pillarPageId) {
-    const { data } = await supabase
-      .from("pillar_pages")
-      .select("url, title")
-      .eq("id", pillarPageId)
-      .single();
-    if (data) pillar = data;
-  }
+  if (pillarRes.data) pillar = pillarRes.data as { url: string; title: string };
+
+  const proj = projectRes.data;
+  const localContext = proj?.city
+    ? {
+        businessName: proj.business_name,
+        businessType: proj.business_type,
+        city: proj.city,
+        stateProvince: proj.state_province,
+        serviceAreas: proj.service_areas ?? [],
+        napAddress: proj.nap_address,
+        napPhone: proj.nap_phone,
+        primaryCategory: proj.primary_category,
+      }
+    : null;
 
   // Create or reuse article record
   let articleId = existingArticleId ?? null;
@@ -353,6 +371,7 @@ export async function POST(req: NextRequest) {
                 contentFormat,
                 audienceLevel,
                 pointOfView,
+                localContext,
               })) {
                 fullText += chunk;
                 controller.enqueue(encode(encoder, { type: "chunk", content: chunk, articleId: articleId ?? "" }));
@@ -391,7 +410,7 @@ export async function POST(req: NextRequest) {
                       primaryKeyword, clusterKeywords, serpData,
                       internalLinks, externalLinks, competitionAnalysis,
                       writingPlan, tone, targetWordCount: effectiveWordCount, brief, pillar,
-                      contentFormat, audienceLevel, pointOfView,
+                      contentFormat, audienceLevel, pointOfView, localContext,
                     }),
                   }).eq("id", articleId),
                   upsertResearch(supabase, articleId, primaryKeyword, {
