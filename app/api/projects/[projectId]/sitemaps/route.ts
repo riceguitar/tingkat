@@ -3,13 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_sitemaps")
     .select("*")
-    .eq("project_id", params.projectId)
+    .eq("project_id", projectId)
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -18,8 +19,9 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
   const { url } = await req.json();
   if (!url || typeof url !== "string") {
     return NextResponse.json({ error: "url is required" }, { status: 400 });
@@ -31,7 +33,7 @@ export async function POST(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_sitemaps")
-    .insert({ project_id: params.projectId, url: normalized })
+    .insert({ project_id: projectId, url: normalized })
     .select()
     .single();
 

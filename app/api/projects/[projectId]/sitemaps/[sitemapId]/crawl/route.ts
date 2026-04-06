@@ -56,25 +56,23 @@ async function fetchPageMeta(url: string): Promise<{ title: string | null; descr
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { projectId: string; sitemapId: string } }
+  { params }: { params: Promise<{ projectId: string; sitemapId: string }> }
 ) {
+  const { projectId, sitemapId } = await params;
   const supabase = await createClient();
 
-  // Fetch the sitemap record
   const { data: sitemap, error: sErr } = await supabase
     .from("project_sitemaps")
     .select("id, url, project_id")
-    .eq("id", params.sitemapId)
-    .eq("project_id", params.projectId)
+    .eq("id", sitemapId)
+    .eq("project_id", projectId)
     .single();
 
   if (sErr || !sitemap) return NextResponse.json({ error: "Sitemap not found" }, { status: 404 });
 
-  // Fetch all URLs from the sitemap XML
   const allUrls = await fetchSitemapUrls(sitemap.url);
-  const uniqueUrls = [...new Set(allUrls)].slice(0, 2000); // cap at 2000 pages
+  const uniqueUrls = [...new Set(allUrls)].slice(0, 2000);
 
-  // Fetch page metadata for each URL in parallel batches of 10
   const pages: Array<{ project_id: string; sitemap_id: string; url: string; title: string | null; description: string | null; h1: string | null; last_fetched_at: string }> = [];
   const batchSize = 10;
   for (let i = 0; i < uniqueUrls.length; i += batchSize) {
@@ -82,8 +80,8 @@ export async function POST(
     const metas = await Promise.all(batch.map((u) => fetchPageMeta(u)));
     for (let j = 0; j < batch.length; j++) {
       pages.push({
-        project_id: params.projectId,
-        sitemap_id: params.sitemapId,
+        project_id: projectId,
+        sitemap_id: sitemapId,
         url: batch[j],
         ...metas[j],
         last_fetched_at: new Date().toISOString(),
@@ -91,18 +89,16 @@ export async function POST(
     }
   }
 
-  // Upsert pages in batches of 100
   for (let i = 0; i < pages.length; i += 100) {
     await supabase
       .from("sitemap_pages")
       .upsert(pages.slice(i, i + 100), { onConflict: "project_id,url" });
   }
 
-  // Update sitemap record with crawl stats
   await supabase
     .from("project_sitemaps")
     .update({ last_crawled_at: new Date().toISOString(), page_count: pages.length })
-    .eq("id", params.sitemapId);
+    .eq("id", sitemapId);
 
-  return NextResponse.json({ crawled: pages.length, sitemapId: params.sitemapId });
+  return NextResponse.json({ crawled: pages.length, sitemapId });
 }
