@@ -57,11 +57,16 @@ export default function KeywordResearchPage() {
   const [editingCluster, setEditingCluster] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", color: "", intent: "", pillar_page_id: "" });
   const [pillars, setPillars] = useState<PillarOption[]>([]);
+  const [quickWins, setQuickWins] = useState<Array<{ query: string; clicks: number; impressions: number; avg_position: number }>>([]);
 
   useEffect(() => {
     if (projectId) {
       loadSavedClusters();
       loadPillars();
+      fetch(`/api/gsc/quick-wins?projectId=${projectId}`)
+        .then((r) => r.json())
+        .then((d) => setQuickWins(d.quickWins ?? []))
+        .catch(() => {});
     }
   }, [projectId]);
 
@@ -467,6 +472,57 @@ export default function KeywordResearchPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* GSC Quick Wins */}
+      {quickWins.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-amber-500" />
+            <h3 className="font-semibold text-base">Quick Wins from GSC</h3>
+            <span className="text-xs text-muted-foreground rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5">
+              page 2–3, no article yet
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground -mt-1">
+            Your site already ranks for these queries — write a targeted article to push them onto page 1.
+          </p>
+          <Card>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-medium">Query</th>
+                  <th className="px-4 py-3 text-right font-medium">Avg position</th>
+                  <th className="px-4 py-3 text-right font-medium">Impressions (90d)</th>
+                  <th className="px-4 py-3 text-right font-medium">Clicks (90d)</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {quickWins.map((q) => (
+                  <tr key={q.query} className="border-b hover:bg-muted/30">
+                    <td className="px-4 py-2.5 font-medium max-w-xs truncate">{q.query}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className="text-amber-600 font-medium">#{q.avg_position}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">{q.impressions.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">{q.clicks.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => router.push(`/content/research?primaryKeyword=${encodeURIComponent(q.query)}&projectId=${projectId}`)}
+                      >
+                        Research &amp; Generate →
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         </div>
       )}
 

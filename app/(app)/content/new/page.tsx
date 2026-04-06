@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStreamGeneration } from "@/hooks/use-stream-generation";
-import { Sparkles, ArrowRight, RotateCcw, Tag, Layers } from "lucide-react";
+import { Sparkles, ArrowRight, RotateCcw, Tag, Layers, FlaskConical } from "lucide-react";
 import { useProject } from "@/lib/context/project-context";
 import type { PillarPage } from "@/types/database";
 
@@ -76,6 +76,20 @@ export default function NewContentPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Generate Content" description="AI-powered SEO article creation">
+        <Button
+          variant="outline"
+          onClick={() => {
+            const params = new URLSearchParams();
+            const pid = form.projectId || contextProjectId;
+            if (pid) params.set("projectId", pid);
+            if (clusterName) params.set("clusterName", clusterName);
+            if (clusterKeywords) params.set("keywords", clusterKeywords);
+            if (urlClusterId) params.set("clusterId", urlClusterId);
+            router.push(`/content/research?${params.toString()}`);
+          }}
+        >
+          <FlaskConical className="h-4 w-4" /> Research &amp; Generate
+        </Button>
         {articleId && (
           <Button onClick={() => router.push(`/content/${articleId}`)}>
             Open in Editor <ArrowRight className="h-4 w-4" />

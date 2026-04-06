@@ -60,6 +60,9 @@ export async function GET(req: NextRequest) {
     await supabase.from("gsc_snapshots").upsert(snapshots, {
       onConflict: "project_id,query,page,snapshot_date",
     });
+
+    // Link matched keywords — idempotent, safe to run every sync
+    await supabase.rpc("link_gsc_keyword_ids", { p_project_id: projectId });
   }
 
   return NextResponse.json({ rows, synced: snapshots.length });
