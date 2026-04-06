@@ -575,7 +575,7 @@ function StepResult({
               label="CPC"
               value={data.keyword_metrics?.cpc ? `$${data.keyword_metrics.cpc.toFixed(2)}` : "N/A"}
             />
-            <Metric label="Avg Competitor Words" value={data.avg_competitor_word_count.toLocaleString()} />
+            <Metric label="Avg Competitor Words" value={data.avg_competitor_word_count?.toLocaleString() ?? "N/A"} />
           </div>
 
           {/* Top organic results */}
