@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { getSerpPositions } from "@/lib/api/dataforseo";
+import { getCredentialsByProject } from "@/lib/api/credentials";
 
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data: projects } = await supabase.from("projects").select("id, domain");
   if (!projects?.length) return NextResponse.json({ processed: 0 });
 
@@ -20,7 +21,13 @@ export async function GET(req: NextRequest) {
 
     if (!keywords?.length) continue;
 
-    const results = await getSerpPositions(project.domain, keywords.map((k) => k.keyword));
+    const creds = await getCredentialsByProject(supabase, project.id);
+    const results = await getSerpPositions(
+      project.domain,
+      keywords.map((k) => k.keyword),
+      undefined, undefined, undefined,
+      { login: creds.dataforseoLogin, apiKey: creds.dataforseoApiKey }
+    );
     const today = new Date().toISOString().split("T")[0];
 
     const snapshots = results.map((r) => {

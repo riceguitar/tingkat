@@ -63,6 +63,24 @@ export interface Database {
         Update: Partial<AppSetting>;
         Relationships: [];
       };
+      accounts: {
+        Row: Account;
+        Insert: Omit<Account, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<Account, "id" | "created_at">>;
+        Relationships: [];
+      };
+      account_members: {
+        Row: AccountMember;
+        Insert: Omit<AccountMember, "id" | "created_at">;
+        Update: Partial<Omit<AccountMember, "id" | "created_at">>;
+        Relationships: [];
+      };
+      account_credentials: {
+        Row: AccountCredential;
+        Insert: Omit<AccountCredential, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<AccountCredential, "id" | "created_at">>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -73,8 +91,35 @@ export interface Database {
   };
 }
 
+export interface Account {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountMember {
+  id: string;
+  account_id: string;
+  user_id: string;
+  role: "owner" | "member";
+  created_at: string;
+}
+
+export interface AccountCredential {
+  id: string;
+  account_id: string;
+  key: string;
+  encrypted_value: string;
+  iv: string;
+  auth_tag: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Project {
   id: string;
+  account_id: string;
   name: string;
   domain: string;
   description: string | null;

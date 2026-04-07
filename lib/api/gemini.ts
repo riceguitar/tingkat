@@ -8,9 +8,12 @@ import type {
 
 export const MODEL = "claude-sonnet-4-5";
 
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
+export interface AnthropicCredentials {
+  apiKey: string;
+}
+
+function getClient(apiKey: string): Anthropic {
+  if (!apiKey) throw new Error("Anthropic API key is not configured");
   return new Anthropic({ apiKey });
 }
 
@@ -105,9 +108,10 @@ Include a compelling introduction, well-structured body sections, and a conclusi
 // ============================================================
 export async function* streamArticle(
   prompt: string,
-  targetWordCount = 1500
+  targetWordCount = 1500,
+  creds: AnthropicCredentials = { apiKey: process.env.ANTHROPIC_API_KEY ?? "" }
 ): AsyncGenerator<string> {
-  const client = getClient();
+  const client = getClient(creds.apiKey);
   const max_tokens = Math.min(Math.ceil(targetWordCount * 1.4) + 800, 8192);
 
   const stream = await client.messages.stream({
@@ -137,10 +141,11 @@ export interface InternalLinkSource {
 
 export async function scoreInternalLinks(
   articleTopic: string,
-  candidates: InternalLinkSource[]
+  candidates: InternalLinkSource[],
+  creds: AnthropicCredentials = { apiKey: process.env.ANTHROPIC_API_KEY ?? "" }
 ): Promise<InternalLinkCandidate[]> {
   if (candidates.length === 0) return [];
-  const client = getClient();
+  const client = getClient(creds.apiKey);
 
   const list = candidates
     .map((c, i) => `${i + 1}. "${c.title}" — ${c.url}`)
@@ -201,9 +206,10 @@ Format:
 export async function analyzeCompetitors(
   serpData: SerpData,
   keyword: string,
-  clusterKeywords: string[]
+  clusterKeywords: string[],
+  creds: AnthropicCredentials = { apiKey: process.env.ANTHROPIC_API_KEY ?? "" }
 ): Promise<CompetitionAnalysis> {
-  const client = getClient();
+  const client = getClient(creds.apiKey);
 
   const competitorList = serpData.organic
     .slice(0, 10)
@@ -276,9 +282,10 @@ export interface WritingPlanParams {
 }
 
 export async function* streamWritingPlan(
-  params: WritingPlanParams
+  params: WritingPlanParams,
+  creds: AnthropicCredentials = { apiKey: process.env.ANTHROPIC_API_KEY ?? "" }
 ): AsyncGenerator<string> {
-  const client = getClient();
+  const client = getClient(creds.apiKey);
 
   const internalLinkList = params.internalLinks
     .slice(0, 6)
@@ -480,10 +487,11 @@ After each major H2 section, insert one image placeholder on its own line: [IMAG
 }
 
 export async function* streamResearchArticle(
-  params: ResearchArticleParams
+  params: ResearchArticleParams,
+  creds: AnthropicCredentials = { apiKey: process.env.ANTHROPIC_API_KEY ?? "" }
 ): AsyncGenerator<string> {
   const prompt = buildResearchArticlePrompt(params);
-  const client = getClient();
+  const client = getClient(creds.apiKey);
 
   // Hard ceiling: ~1.4 tokens/word + 800 tokens for meta/schema/outline wrappers
   const max_tokens = Math.min(Math.ceil(params.targetWordCount * 1.4) + 800, 16000);
@@ -513,9 +521,10 @@ export interface ClusterResult {
 
 export async function clusterKeywords(
   keywords: Array<{ keyword: string; volume?: number; intent?: string }>,
-  maxClusters = 8
+  maxClusters = 8,
+  creds: AnthropicCredentials = { apiKey: process.env.ANTHROPIC_API_KEY ?? "" }
 ): Promise<ClusterResult[]> {
-  const client = getClient();
+  const client = getClient(creds.apiKey);
 
   const keywordList = keywords
     .map(

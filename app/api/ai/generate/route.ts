@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildArticlePrompt, streamArticle } from "@/lib/api/gemini";
 import { createClient } from "@/lib/supabase/server";
+import { getCredentialsByProject } from "@/lib/api/credentials";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -11,6 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createClient();
+  const creds = await getCredentialsByProject(supabase, projectId);
 
   // Fetch project local profile and pillar page in parallel
   const [projectRes, pillarRes] = await Promise.all([
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
       try {
         let fullText = "";
 
-        for await (const chunk of streamArticle(prompt, targetWordCount ?? 1500)) {
+        for await (const chunk of streamArticle(prompt, targetWordCount ?? 1500, { apiKey: creds.anthropicApiKey })) {
           fullText += chunk;
           controller.enqueue(
             encoder.encode(

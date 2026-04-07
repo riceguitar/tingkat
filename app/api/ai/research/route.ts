@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSerpData, getContentAnalysis } from "@/lib/api/dataforseo";
+import { getCredentialsByProject } from "@/lib/api/credentials";
 import {
   scoreInternalLinks,
   analyzeCompetitors,
@@ -66,6 +67,9 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createClient();
+  const creds = await getCredentialsByProject(supabase, projectId);
+  const dfsCreds = { login: creds.dataforseoLogin, apiKey: creds.dataforseoApiKey };
+  const anthropicCreds = { apiKey: creds.anthropicApiKey };
 
   // Resolve pillar page and project local profile in parallel
   const [pillarRes, projectRes] = await Promise.all([
@@ -150,7 +154,7 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encode(encoder, { type: "step_start", step, label: "Researching SERP landscape…" }));
             try {
               controller.enqueue(encode(encoder, { type: "step_progress", step, message: `Fetching Google SERP for "${primaryKeyword}"…` }));
-              serpData = await getSerpData(primaryKeyword);
+              serpData = await getSerpData(primaryKeyword, undefined, undefined, dfsCreds);
 
               // Cannibalization check — GSC + sitemap pages
               const [{ data: gscToken }, { data: sitemapMatch }] = await Promise.all([
@@ -267,7 +271,7 @@ export async function POST(req: NextRequest) {
                 message: `Scoring ${candidates.length} internal pages for relevance…`,
               }));
 
-              internalLinks = await scoreInternalLinks(primaryKeyword, candidates);
+              internalLinks = await scoreInternalLinks(primaryKeyword, candidates, anthropicCreds);
               await upsertResearch(supabase, articleId, primaryKeyword, { internal_links: internalLinks });
               controller.enqueue(encode(encoder, { type: "step_complete", step, data: internalLinks }));
             } catch (err) {
@@ -286,7 +290,7 @@ export async function POST(req: NextRequest) {
                 message: `Searching DataForSEO content analysis for "${primaryKeyword}"…`,
               }));
 
-              externalLinks = await getContentAnalysis(primaryKeyword);
+              externalLinks = await getContentAnalysis(primaryKeyword, undefined, dfsCreds);
               await upsertResearch(supabase, articleId, primaryKeyword, { external_links: externalLinks });
               controller.enqueue(encode(encoder, { type: "step_complete", step, data: externalLinks }));
             } catch (err) {
@@ -305,7 +309,7 @@ export async function POST(req: NextRequest) {
                 message: "Claude is analysing top 10 competitors…",
               }));
 
-              competitionAnalysis = await analyzeCompetitors(serpData, primaryKeyword, clusterKeywords);
+              competitionAnalysis = await analyzeCompetitors(serpData, primaryKeyword, clusterKeywords, anthropicCreds);
               await upsertResearch(supabase, articleId, primaryKeyword, { competition_analysis: competitionAnalysis });
               controller.enqueue(encode(encoder, { type: "step_complete", step, data: competitionAnalysis }));
             } catch (err) {
@@ -336,7 +340,7 @@ export async function POST(req: NextRequest) {
                 tone,
                 brief,
                 targetWordCount,
-              })) {
+              }, anthropicCreds)) {
                 writingPlan += chunk;
                 controller.enqueue(encode(encoder, { type: "step_chunk", step, content: chunk }));
               }
@@ -372,7 +376,7 @@ export async function POST(req: NextRequest) {
                 audienceLevel,
                 pointOfView,
                 localContext,
-              })) {
+              }, anthropicCreds)) {
                 fullText += chunk;
                 controller.enqueue(encode(encoder, { type: "chunk", content: chunk, articleId: articleId ?? "" }));
               }
