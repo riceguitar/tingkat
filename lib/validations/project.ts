@@ -4,6 +4,7 @@ export const createProjectSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   domain: z.string().min(1, "Domain is required").regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Enter a valid domain (e.g. example.com)"),
   description: z.string().max(500).optional(),
+  account_id: z.string().uuid("Invalid account ID"),
   // Local SEO profile (all optional on create)
   business_type: z.enum(["service_area", "brick_mortar", "hybrid"]).optional(),
   business_name: z.string().max(150).optional(),

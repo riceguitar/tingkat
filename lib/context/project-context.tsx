@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { Project } from "@/types/database";
+import type { Project, Account } from "@/types/database";
 
 interface ProjectContextValue {
   projects: Project[];
+  accounts: Account[];
   projectId: string;
   project: Project | null;
   setProjectId: (id: string) => void;
@@ -12,6 +13,7 @@ interface ProjectContextValue {
 
 const ProjectContext = createContext<ProjectContextValue>({
   projects: [],
+  accounts: [],
   projectId: "",
   project: null,
   setProjectId: () => {},
@@ -35,19 +37,31 @@ export function ProjectProvider({
   initialProjectId?: string;
 }) {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectIdState] = useState(initialProjectId || readLocalStorage());
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [projectId, setProjectIdState] = useState(initialProjectId || "");
+
+  // Hydrate from localStorage after mount to avoid SSR/client mismatch
+  useEffect(() => {
+    if (!initialProjectId) {
+      const stored = readLocalStorage();
+      if (stored) setProjectIdState(stored);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch("/api/projects")
-      .then((r) => r.json())
-      .then((data: Project[]) => {
-        setProjects(data);
-        if (!projectId && data[0]) {
-          const id = data[0].id;
-          setProjectIdState(id);
-          try { localStorage.setItem(LS_KEY, id); } catch { /* ignore */ }
-        }
-      });
+    Promise.all([
+      fetch("/api/projects").then((r) => r.json()),
+      fetch("/api/accounts").then((r) => r.json()),
+    ]).then(([projectData, accountData]) => {
+      setProjects(Array.isArray(projectData) ? projectData : []);
+      const rows: { account: Account; role: string }[] = Array.isArray(accountData) ? accountData : [];
+      setAccounts(rows.map((a) => a.account));
+      if (!projectId && projectData[0]) {
+        const id = projectData[0].id;
+        setProjectIdState(id);
+        try { localStorage.setItem(LS_KEY, id); } catch { /* ignore */ }
+      }
+    });
   }, []);
 
   const setProjectId = useCallback((id: string) => {
@@ -58,7 +72,7 @@ export function ProjectProvider({
   const project = projects.find((p) => p.id === projectId) ?? null;
 
   return (
-    <ProjectContext.Provider value={{ projects, projectId, project, setProjectId }}>
+    <ProjectContext.Provider value={{ projects, accounts, projectId, project, setProjectId }}>
       {children}
     </ProjectContext.Provider>
   );

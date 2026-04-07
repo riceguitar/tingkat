@@ -22,6 +22,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  // Verify caller is a member (owner) of the target account
+  const { data: membership } = await supabase
+    .from("account_members")
+    .select("role")
+    .eq("account_id", parsed.data.account_id)
+    .single();
+
+  if (!membership) {
+    return NextResponse.json({ error: "Account not found or access denied" }, { status: 403 });
+  }
+
+  if (membership.role !== "owner") {
+    return NextResponse.json({ error: "Only account owners can create projects" }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from("projects")
     .insert(parsed.data)

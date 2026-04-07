@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { getSearchAnalytics, refreshAccessToken } from "@/lib/api/google-search-console";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { format, subDays } from "date-fns";
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data: tokenRows } = await supabase.from("gsc_tokens").select("*");
   if (!tokenRows?.length) return NextResponse.json({ processed: 0 });
 

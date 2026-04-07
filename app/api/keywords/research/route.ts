@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getKeywordIdeas } from "@/lib/api/dataforseo";
+import { getCredentialsByProject } from "@/lib/api/credentials";
 import { keywordResearchSchema } from "@/lib/validations/keyword";
 
 export async function POST(req: NextRequest) {
@@ -11,18 +12,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Use the project's location_code if no explicit override was sent
   let locationCode = parsed.data.locationCode;
-  if (locationCode === 2840 && parsed.data.projectId) {
+  let dfsCreds = { login: process.env.DATAFORSEO_LOGIN ?? "", apiKey: process.env.DATAFORSEO_API_KEY ?? "" };
+
+  if (parsed.data.projectId) {
     try {
       const supabase = await createClient();
-      const { data } = await supabase
-        .from("projects")
-        .select("location_code")
-        .eq("id", parsed.data.projectId)
-        .single();
-      if (data?.location_code) locationCode = data.location_code;
-    } catch { /* fall back to default */ }
+      const [projectRes, accountCreds] = await Promise.all([
+        supabase.from("projects").select("location_code").eq("id", parsed.data.projectId).single(),
+        getCredentialsByProject(supabase, parsed.data.projectId),
+      ]);
+      if (projectRes.data?.location_code && locationCode === 2840) locationCode = projectRes.data.location_code;
+      dfsCreds = { login: accountCreds.dataforseoLogin, apiKey: accountCreds.dataforseoApiKey };
+    } catch { /* fall back to defaults */ }
   }
 
   try {
@@ -30,7 +32,8 @@ export async function POST(req: NextRequest) {
       parsed.data.seedKeyword,
       locationCode,
       parsed.data.languageCode,
-      parsed.data.limit
+      parsed.data.limit,
+      dfsCreds
     );
     return NextResponse.json({ keywords, locationCode });
   } catch (err) {

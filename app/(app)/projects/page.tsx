@@ -8,21 +8,31 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Plus, FolderOpen, Globe } from "lucide-react";
+import { useProject } from "@/lib/context/project-context";
 import type { Project } from "@/types/database";
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const { accounts } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", domain: "", description: "" });
+  const [form, setForm] = useState({ name: "", domain: "", description: "", account_id: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/projects").then((r) => r.json()).then(setProjects);
   }, []);
+
+  // Auto-select account when only one available
+  useEffect(() => {
+    if (accounts.length === 1 && !form.account_id) {
+      setForm((f) => ({ ...f, account_id: accounts[0].id }));
+    }
+  }, [accounts]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +49,7 @@ export default function ProjectsPage() {
     } else {
       setProjects((prev) => [data, ...prev]);
       setOpen(false);
-      setForm({ name: "", domain: "", description: "" });
+      setForm({ name: "", domain: "", description: "", account_id: accounts.length === 1 ? accounts[0].id : "" });
     }
     setLoading(false);
   }
@@ -89,6 +99,21 @@ export default function ProjectsPage() {
             <DialogTitle>Create project</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
+            {accounts.length > 1 && (
+              <div className="space-y-1.5">
+                <Label>Account</Label>
+                <Select value={form.account_id} onValueChange={(v) => setForm({ ...form, account_id: v })} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="name">Project name</Label>
               <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="My Website" required />
@@ -104,7 +129,7 @@ export default function ProjectsPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={loading}>{loading ? "Creating..." : "Create"}</Button>
+              <Button type="submit" disabled={loading || !form.account_id}>{loading ? "Creating..." : "Create"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

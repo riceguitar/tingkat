@@ -1,17 +1,20 @@
 const DATAFORSEO_BASE = "https://api.dataforseo.com/v3";
 
-function getAuth(): string {
-  const login = process.env.DATAFORSEO_LOGIN;
-  const password = process.env.DATAFORSEO_API_KEY;
-  if (!login || !password) throw new Error("DataForSEO credentials not configured");
-  return Buffer.from(`${login}:${password}`).toString("base64");
+export interface DataForSeoCredentials {
+  login: string;
+  apiKey: string;
 }
 
-async function request<T>(path: string, body: unknown): Promise<T> {
+function buildAuth(login: string, apiKey: string): string {
+  if (!login || !apiKey) throw new Error("DataForSEO credentials not configured");
+  return Buffer.from(`${login}:${apiKey}`).toString("base64");
+}
+
+async function request<T>(path: string, body: unknown, creds: DataForSeoCredentials): Promise<T> {
   const res = await fetch(`${DATAFORSEO_BASE}${path}`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${getAuth()}`,
+      Authorization: `Basic ${buildAuth(creds.login, creds.apiKey)}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -36,7 +39,8 @@ export async function getKeywordIdeas(
   seedKeyword: string,
   locationCode = 2840,
   languageCode = "en",
-  limit = 100
+  limit = 100,
+  creds: DataForSeoCredentials = { login: process.env.DATAFORSEO_LOGIN ?? "", apiKey: process.env.DATAFORSEO_API_KEY ?? "" }
 ): Promise<KeywordIdeasResult[]> {
   const data = await request<{
     tasks: Array<{
@@ -56,7 +60,7 @@ export async function getKeywordIdeas(
       language_code: languageCode,
       limit,
     },
-  ]);
+  ], creds);
 
   const items = data?.tasks?.[0]?.result ?? [];
 
@@ -88,7 +92,8 @@ export { SerpData, SerpOrganicItem, ExternalLinkCandidate };
 export async function getSerpData(
   keyword: string,
   locationCode = 2840,
-  languageCode = "en"
+  languageCode = "en",
+  creds: DataForSeoCredentials = { login: process.env.DATAFORSEO_LOGIN ?? "", apiKey: process.env.DATAFORSEO_API_KEY ?? "" }
 ): Promise<SerpData> {
   type SerpItem = {
     type: string;
@@ -119,7 +124,7 @@ export async function getSerpData(
         device: "desktop",
         depth: 10,
       },
-    ]),
+    ], creds),
     request<{
       tasks: Array<{
         result: Array<{
@@ -135,7 +140,7 @@ export async function getSerpData(
         location_code: locationCode,
         language_code: languageCode,
       },
-    ]),
+    ], creds),
   ]);
 
   const items: SerpItem[] = serpRaw?.tasks?.[0]?.result?.[0]?.items ?? [];
@@ -200,7 +205,7 @@ export async function getSerpData(
           language_code: languageCode,
           limit: 50,
         },
-      ]);
+      ], creds);
       const fallbackItems = fallbackRaw?.tasks?.[0]?.result ?? [];
       const normalised = keyword.toLowerCase().trim();
       const exactMatch = fallbackItems.find((r) => r.keyword?.toLowerCase().trim() === normalised);
@@ -224,7 +229,8 @@ export async function getSerpData(
 // ============================================================
 export async function getContentAnalysis(
   query: string,
-  locationCode = 2840
+  locationCode = 2840,
+  creds: DataForSeoCredentials = { login: process.env.DATAFORSEO_LOGIN ?? "", apiKey: process.env.DATAFORSEO_API_KEY ?? "" }
 ): Promise<ExternalLinkCandidate[]> {
   type ContentItem = {
     url?: string;
@@ -245,7 +251,7 @@ export async function getContentAnalysis(
       limit: 15,
       filters: [["domain_rank", ">", 50]],
     },
-  ]);
+  ], creds);
 
   const items: ContentItem[] = data?.tasks?.[0]?.result?.[0]?.items ?? [];
 
@@ -279,7 +285,8 @@ export async function getSerpPositions(
   keywords: string[],
   locationCode = 2840,
   languageCode = "en",
-  device: "desktop" | "mobile" = "desktop"
+  device: "desktop" | "mobile" = "desktop",
+  creds: DataForSeoCredentials = { login: process.env.DATAFORSEO_LOGIN ?? "", apiKey: process.env.DATAFORSEO_API_KEY ?? "" }
 ): Promise<SerpPositionResult[]> {
   const tasks = keywords.map((keyword) => ({
     keyword,
@@ -302,7 +309,7 @@ export async function getSerpPositions(
         }>;
       }> | null;
     }>;
-  }>("/serp/google/organic/live/advanced", tasks);
+  }>("/serp/google/organic/live/advanced", tasks, creds);
 
   return (data?.tasks ?? []).map((task) => {
     const keyword = task.data?.keyword ?? "";
